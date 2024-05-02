@@ -17,11 +17,11 @@ RFtoys3 <- varSelRF(toys$x, toys$y)
 RFtoys3
 
 library(vita)
-#Janitza
+# Janitza
 PerVarImp1 <- CVPVI(toys$x, toys$y)
 RFtoys4 <- NTA(PerVarImp1$cv_varim)
 which(RFtoys4$pvalue<0.05)
-#Altmann
+# Altmann
 PerVarImp2 <- PIMP(toys$x, toys$y, randomForest(toys$x, toys$y))
 RFtoys5 <- PimpTest(PerVarImp2)
 which(RFtoys5$pvalue<0.05)
