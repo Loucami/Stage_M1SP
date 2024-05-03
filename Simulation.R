@@ -1,29 +1,56 @@
-library(VSURF)
-data("toys")
-RFtoys <- VSURF(toys$x, toys$y, mtree = 100)
-RFtoys$varselect.interp
-RFtoys$varselect.pred
-plot(RFtoys)
 
-library(Boruta)
-RFtoys2 <- Boruta(toys$x, toys$y)
-RFtoys2
-RFtoys2$finalDecision
-which(RFtoys2$finalDecision=='Confirmed')
-plot(RFtoys2)
 
-library(varSelRF)
-RFtoys3 <- varSelRF(toys$x, toys$y)
-RFtoys3
-
-library(vita)
-# Janitza
-PerVarImp1 <- CVPVI(toys$x, toys$y)
-RFtoys4 <- NTA(PerVarImp1$cv_varim)
-which(RFtoys4$pvalue<0.05)
-# Altmann
-PerVarImp2 <- PIMP(toys$x, toys$y, randomForest(toys$x, toys$y))
-RFtoys5 <- PimpTest(PerVarImp2)
-which(RFtoys5$pvalue<0.05)
+simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50)){
+  
+  simulations = list()
+  k = 1
+  
+  # Scénarios dépendants
+  for (m in M){
+    data = list()
+    for (r in 1:R){
+      X <- matrix(runif(p*N), ncol = p)
+      epsilon <- rnorm(N, 0, 0.2)
+      Y <- 0.25*exp(4*X[,1]) + 4/(1+exp(-20*(X[,2]-0.5))) + X[,3] + epsilon
+      
+      for (i in 1:p) {
+        v <- matrix(NA,N,m)
+        for (j in 1:m){v[,j] <- X[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))}
+        X <- cbind(X, v)
+      }
+      
+      X <- cbind(X,matrix(0,N,p_tot-p-p*m))
+      data[[r]] <- list(x = X, y = Y)
+    }
+    
+    simulations[[k]] <- data
+    k <- k+1
+  }
+  
+  # Scénarios indépendants (ou nuls)
+  for (m in M){
+    data = list()
+    for (r in 1:R){
+      X <- matrix(runif(p*N), ncol = p)
+      X_ind <- matrix(rnorm(3*N,0,0.2), ncol = 3)
+      epsilon <- rnorm(N, 0, 0.2)
+      Y <- 0.25*exp(4*X_ind[,1]) + 4/(1+exp(-20*(X_ind[,2]-0.5))) + X_ind[,3] + epsilon
+      
+      for (i in 1:p) {
+        v <- matrix(NA,N,m)
+        for (j in 1:m){v[,j] <- X[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))}
+        X <- cbind(X, v)
+      }
+      
+      X <- cbind(X,matrix(0,N,p_tot-p-p*m))
+      data[[r]] <- list(x = X, y = Y)
+    }
+    
+    simulations[[k]] <- data
+    k <- k+1
+  }
+  
+  return(simulations)
+}
 
 
