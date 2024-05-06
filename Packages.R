@@ -4,11 +4,12 @@ RFtoys <- VSURF(toys$x, toys$y, mtree = 100)
 RFtoys$varselect.interp
 RFtoys$varselect.pred
 plot(RFtoys)
+RFtoys$mean.perf
+test <- VSURF(toys$x, toys$y, mtree = 100, data = c(1,2,3,4,5))
 
 library(Boruta)
 RFtoys2 <- Boruta(toys$x, toys$y)
 RFtoys2
-RFtoys2$finalDecision
 which(RFtoys2$finalDecision=='Confirmed')
 plot(RFtoys2)
 
@@ -20,7 +21,9 @@ library(vita)
 # Janitza
 PerVarImp1 <- CVPVI(toys$x, toys$y)
 RFtoys4 <- NTA(PerVarImp1$cv_varim)
+summary(RFtoys4,pless = 0.01)
 which(RFtoys4$pvalue<0.05)
+
 # Altmann
 PerVarImp2 <- PIMP(toys$x, toys$y, randomForest(toys$x, toys$y))
 RFtoys5 <- PimpTest(PerVarImp2)

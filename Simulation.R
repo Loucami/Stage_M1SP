@@ -1,6 +1,12 @@
+library(VSURF)
+library(Boruta)
+library(varSelRF)
+library(vita)
+library(CoVVSURF)
+library(progress)
 
 
-simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50)){
+simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   
   simulations = list()
   k = 1
@@ -19,7 +25,7 @@ simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50)){
         X <- cbind(X, v)
       }
       
-      X <- cbind(X,matrix(0,N,p_tot-p-p*m))
+      X <- cbind(X,matrix(0,N,P-p-p*m))
       data[[r]] <- list(x = X, y = Y)
     }
     
@@ -42,7 +48,7 @@ simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50)){
         X <- cbind(X, v)
       }
       
-      X <- cbind(X,matrix(0,N,p_tot-p-p*m))
+      X <- cbind(X,matrix(0,N,P-p-p*m))
       data[[r]] <- list(x = X, y = Y)
     }
     
@@ -53,4 +59,78 @@ simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50)){
   return(simulations)
 }
 
+ 
+evaluation1 <- function(simulations){
+  
+  pb <- progress_bar$new(
+    format = "[:bar] :percent ETA: :eta",
+    total = length(simulations)*(length(simulations[[1]])+1)+1
+  )
+  
+  pb$tick()
+  resultats <- list()
+  k = 1
+  
+  for (simulation in simulations){
+    
+    vsurf_vsi <- list()
+    vsurf_vsp <- list()
+    boruta_vs <- list()
+    
+    i = 1
+    
+    for (replica in simulation){
+      
+      # VSURF
+      # vsurf <- VSURF(replica$x, replica$y)
+      # vsurf_vsi[[i]] <- vsurf$varselect.interp
+      # vsurf_vsp[[i]] <- vsurf$varselect.predict
+      
+      # Boruta 
+      boruta <- Boruta(replica$x, replica$y)
+      boruta_vs[[i]] <- which(boruta$finalDecision=='Confirmed')
+      # plot(boruta)
 
+      # Janitza
+      # PerVarImp1 <- CVPVI(replica$x, replica$y)
+      # janitza <- NTA(PerVarImp1$cv_varim)
+      # print(summary(janitza))
+      # janitza_vs[[i]] <- which(janitza$pvalue<0.01)
+      
+      # Altmann
+      # PerVarImp2 <- PIMP(replica$x, replica$y, randomForest(replica$x, replica$y))
+      # altmann_vs[[i]] <- PimpTest(PerVarImp2)
+      # altmann_vs[[i]] <- which(altmann_vs$pvalue<0.05)
+      
+      # CoV/VSURF
+      # covsurf <- covsurf(replica$x, replica$y)
+      # covsurf$vsurf_ptree$varselect.interp 
+      
+      i <- i+1
+      pb$tick()
+    }
+    
+    # for (replica in simulation[51:100]){
+    #   
+    # }
+    
+    j = 1
+    vars_select <- list()
+    methods <- list(boruta_vs)
+    for (method in methods){
+      vars <- numeric(5000)
+      for (vs in method) { vars[vs] <- vars[vs] + 1 }
+      vars_select[[j]] <- which(vars/length(method) > 0.95) 
+      j <- j+1
+    }
+    
+    resultats[[k]] <- list(boruta = vars_select[[1]])
+    k <- k+1
+    pb$tick()
+  }
+  
+  return(resultats)
+}
+
+simu <- simulation1(R=1)
+res <- evaluation1(simu)
