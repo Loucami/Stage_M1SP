@@ -73,9 +73,10 @@ evaluation1 <- function(simulations){
   
   for (simulation in simulations){
     
-    vsurf_vsi <- list()
-    vsurf_vsp <- list()
+    #vsurf_vsi <- list()
+    #vsurf_vsp <- list()
     boruta_vs <- list()
+    janitza_vs <- list()
     
     i = 1
     
@@ -92,10 +93,9 @@ evaluation1 <- function(simulations){
       # plot(boruta)
 
       # Janitza
-      # PerVarImp1 <- CVPVI(replica$x, replica$y)
-      # janitza <- NTA(PerVarImp1$cv_varim)
-      # print(summary(janitza))
-      # janitza_vs[[i]] <- which(janitza$pvalue<0.01)
+      PerVarImp1 <- CVPVI(replica$x, replica$y)
+      janitza <- NTA(PerVarImp1$cv_varim)
+      janitza_vs[[i]] <- which(janitza$pvalue<0.001)
       
       # Altmann
       # PerVarImp2 <- PIMP(replica$x, replica$y, randomForest(replica$x, replica$y))
@@ -116,7 +116,8 @@ evaluation1 <- function(simulations){
     
     j = 1
     vars_select <- list()
-    methods <- list(boruta_vs)
+    methods <- list(boruta_vs, 
+                    janitza_vs)
     for (method in methods){
       vars <- numeric(5000)
       for (vs in method) { vars[vs] <- vars[vs] + 1 }
@@ -124,7 +125,8 @@ evaluation1 <- function(simulations){
       j <- j+1
     }
     
-    resultats[[k]] <- list(boruta = vars_select[[1]])
+    resultats[[k]] <- list(boruta = vars_select[[1]], 
+                           janitza = vars_select[[2]])
     k <- k+1
     pb$tick()
   }
@@ -132,5 +134,7 @@ evaluation1 <- function(simulations){
   return(resultats)
 }
 
-simu <- simulation1(R=1)
+simu <- simulation1(R=10)
 res <- evaluation1(simu)
+res[[3]]$boruta
+res[[4]]$janitza

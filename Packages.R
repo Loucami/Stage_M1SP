@@ -21,8 +21,7 @@ library(vita)
 # Janitza
 PerVarImp1 <- CVPVI(toys$x, toys$y)
 RFtoys4 <- NTA(PerVarImp1$cv_varim)
-summary(RFtoys4,pless = 0.01)
-which(RFtoys4$pvalue<0.05)
+which(RFtoys4$pvalue<0.001)
 
 # Altmann
 PerVarImp2 <- PIMP(toys$x, toys$y, randomForest(toys$x, toys$y))
