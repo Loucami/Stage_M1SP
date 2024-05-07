@@ -136,5 +136,13 @@ evaluation1 <- function(simulations){
 
 simu <- simulation1(R=10)
 res <- evaluation1(simu)
-res[[3]]$boruta
-res[[4]]$janitza
+res[[1]]$boruta
+res[[1]]$janitza
+
+# Critère du coude pour le choix de 0.001 ? 
+test <- CVPVI(simu[[1]][[1]]$x,simu[[1]][[1]]$y) 
+test2 <- NTA(test$cv_varim)
+plot(sort(test2$pvalue)[1:100])
+abline(h=0.001, col = 'red')
+
+# Tester pour 0.99 
