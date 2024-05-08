@@ -76,7 +76,8 @@ evaluation1 <- function(simulations){
     #vsurf_vsi <- list()
     #vsurf_vsp <- list()
     boruta_vs <- list()
-    janitza_vs <- list()
+    janitza_vs1 <- list()
+    janitza_vs2 <- list()
     
     i = 1
     
@@ -95,7 +96,8 @@ evaluation1 <- function(simulations){
       # Janitza
       PerVarImp1 <- CVPVI(replica$x, replica$y)
       janitza <- NTA(PerVarImp1$cv_varim)
-      janitza_vs[[i]] <- which(janitza$pvalue<0.001)
+      janitza_vs1[[i]] <- which(janitza$pvalue<0.001)
+      janitza_vs2[[i]] <- which(janitza$pvalue<floor(median(janitza$pvalue)*1000)*0.001)
       
       # Altmann
       # PerVarImp2 <- PIMP(replica$x, replica$y, randomForest(replica$x, replica$y))
@@ -117,7 +119,8 @@ evaluation1 <- function(simulations){
     j = 1
     vars_select <- list()
     methods <- list(boruta_vs, 
-                    janitza_vs)
+                    janitza_vs1,
+                    janitza_vs2)
     for (method in methods){
       vars <- numeric(5000)
       for (vs in method) { vars[vs] <- vars[vs] + 1 }
@@ -126,7 +129,8 @@ evaluation1 <- function(simulations){
     }
     
     resultats[[k]] <- list(boruta = vars_select[[1]], 
-                           janitza = vars_select[[2]])
+                           janitza1 = vars_select[[2]],
+                           janitza2 = vars_select[[3]])
     k <- k+1
     pb$tick()
   }
@@ -136,13 +140,32 @@ evaluation1 <- function(simulations){
 
 simu <- simulation1(R=10)
 res <- evaluation1(simu)
-res[[1]]$boruta
-res[[1]]$janitza
+res[[4]]$boruta
+res[[4]]$janitza1
+res[[4]]$janitza2
 
-# Critère du coude pour le choix de 0.001 ? 
-test <- CVPVI(simu[[1]][[1]]$x,simu[[1]][[1]]$y) 
-test2 <- NTA(test$cv_varim)
-plot(sort(test2$pvalue)[1:100])
-abline(h=0.001, col = 'red')
 
-# Tester pour 0.99 
+## Critère du coude pour le choix de 0.001 ? 
+
+# Janitza
+test1 <- CVPVI(simu[[2]][[3]]$x,simu[[2]][[3]]$y) 
+test2 <- NTA(test1$cv_varim)
+mean(test2$pvalue)
+median(test2$pvalue)
+which(test2$pvalue<0.001)
+which(test2$pvalue<floor(median(test2$pvalue)*1000)*0.001)
+plot(sort(test2$pvalue)[1:400])
+abline(h=floor(median(test2$pvalue)*1000)*0.001, col = 'red')
+
+# Altmann
+RF <- randomForest(simu[[2]][[5]]$x, simu[[2]][[5]]$y, importance = TRUE)
+test3 <- PIMP(simu[[2]][[5]]$x, simu[[2]][[5]]$y, RF, S = 100)
+test4 <- PimpTest(test3)
+test4$pvalue <- 1-test4$pvalue
+mean(test4$pvalue)
+median(test4$pvalue)
+plot(sort(test4$pvalue, decreasing = TRUE))
+which(test4$pvalue<0.5)
+which(test4$pvalue<floor(median(test4$pvalue)*1000)*0.001)
+
+## Tester pour 0.99 
