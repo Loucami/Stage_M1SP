@@ -4,9 +4,10 @@ library(varSelRF)
 library(vita)
 library(CoVVSURF)
 library(progress)
+library(randomForest)
 
 
-simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
+simulation <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   
   simulations = list()
   k = 1
@@ -14,18 +15,23 @@ simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   # Scénarios dépendants
   for (m in M){
     data = list()
+    
     for (r in 1:R){
       X <- matrix(runif(p*N), ncol = p)
-      epsilon <- rnorm(N, 0, 0.2)
-      Y <- 0.25*exp(4*X[,1]) + 4/(1+exp(-20*(X[,2]-0.5))) + X[,3] + epsilon
+      epsilon <- rnorm(N, 0, 0.2) 
+      Y <- 0.25*exp(4*X[,1]) + 4/(1+exp(-20*(X[,2]-0.5))) + 3*X[,3] + epsilon
       
       for (i in 1:p) {
-        v <- matrix(NA,N,m)
-        for (j in 1:m){v[,j] <- X[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))}
+        v <- matrix(NA, N, m)
+        for (j in 1:m){
+          delta <- rnorm(N, 0, 0.3)
+          v[,j] <- X[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))*delta
+        } 
         X <- cbind(X, v)
       }
       
-      X <- cbind(X,matrix(0,N,P-p-p*m))
+      var_sup <- matrix(runif(N*(P-p-p*m)), ncol = P-p-p*m)
+      X <- cbind(X, var_sup) 
       data[[r]] <- list(x = X, y = Y)
     }
     
@@ -34,31 +40,35 @@ simulation1 <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   }
   
   # Scénarios indépendants (ou nuls)
-  for (m in M){
-    data = list()
-    for (r in 1:R){
-      X <- matrix(runif(p*N), ncol = p)
-      X_ind <- matrix(rnorm(3*N,0,0.2), ncol = 3)
-      epsilon <- rnorm(N, 0, 0.2)
-      Y <- 0.25*exp(4*X_ind[,1]) + 4/(1+exp(-20*(X_ind[,2]-0.5))) + X_ind[,3] + epsilon
-      
-      for (i in 1:p) {
-        v <- matrix(NA,N,m)
-        for (j in 1:m){v[,j] <- X[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))}
-        X <- cbind(X, v)
-      }
-      
-      X <- cbind(X,matrix(0,N,P-p-p*m))
-      data[[r]] <- list(x = X, y = Y)
-    }
-    
-    simulations[[k]] <- data
-    k <- k+1
-  }
+  # for (m in M){
+  #   data = list()
+  # 
+  #   for (r in 1:R){
+  #     X <- matrix(runif(p*N), ncol = p)
+  #     X_ind <- matrix(rnorm(3*N, 0, 0.2), ncol = 3)
+  #     epsilon <- rnorm(N, 0, 0.2)
+  #     Y <- 0.25*exp(4*X_ind[,1]) + 4/(1+exp(-20*(X_ind[,2]-0.5))) + 3*X_ind[,3] + epsilon
+  # 
+  #     for (i in 1:p) {
+  #       v <- matrix(NA, N, m)
+  #       for (j in 1:m){
+  #         delta <- rnorm(N, 0, 0.3)
+  #         v[,j] <- X[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))*delta
+  #       }
+  #       X <- cbind(X, v)
+  #     }
+  # 
+  #     var_sup <- matrix(runif(N*(P-p-p*m)), ncol = P-p-p*m)
+  #     X <- cbind(X, var_sup)
+  #     data[[r]] <- list(x = X, y = Y)
+  #   }
+  # 
+  #   simulations[[k]] <- data
+  #   k <- k+1
+  # }
   
   return(simulations)
 }
-
  
 evaluation1 <- function(simulations){
   
@@ -73,11 +83,13 @@ evaluation1 <- function(simulations){
   
   for (simulation in simulations){
     
-    #vsurf_vsi <- list()
-    #vsurf_vsp <- list()
+    # vsurf_vsi <- list()
+    # vsurf_vsp <- list()
     boruta_vs <- list()
     janitza_vs1 <- list()
     janitza_vs2 <- list()
+    # altmann_vs1 <- list()
+    # altmann_vs2 <- list()
     
     i = 1
     
@@ -91,22 +103,27 @@ evaluation1 <- function(simulations){
       # Boruta 
       boruta <- Boruta(replica$x, replica$y)
       boruta_vs[[i]] <- which(boruta$finalDecision=='Confirmed')
-      # plot(boruta)
 
       # Janitza
       PerVarImp1 <- CVPVI(replica$x, replica$y)
       janitza <- NTA(PerVarImp1$cv_varim)
-      janitza_vs1[[i]] <- which(janitza$pvalue<0.001)
-      janitza_vs2[[i]] <- which(janitza$pvalue<floor(median(janitza$pvalue)*1000)*0.001)
+      janitza_vs1[[i]] <- which(janitza$pvalue==0)
+      janitza_vs2[[i]] <- which(janitza$pvalue<median(janitza$pvalue))
       
       # Altmann
-      # PerVarImp2 <- PIMP(replica$x, replica$y, randomForest(replica$x, replica$y))
-      # altmann_vs[[i]] <- PimpTest(PerVarImp2)
-      # altmann_vs[[i]] <- which(altmann_vs$pvalue<0.05)
+      # RF <- randomForest(replica$x, replica$y, importance = T)
+      # PerVarImp2 <- PIMP(replica$x, replica$y, rForest = RF, S = 20)
+      # altmann <- PimpTest(PerVarImp2)
+      # altmann_vs1[[i]] <- which(altmann$pvalue<0.001)
+      # altmann_vs2[[i]] <- which(altmann$pvalue<floor(median(altmann$pvalue)*1000)*0.001)
       
       # CoV/VSURF
       # covsurf <- covsurf(replica$x, replica$y)
       # covsurf$vsurf_ptree$varselect.interp 
+      
+      
+      # Calcul de performances 
+      # ICI
       
       i <- i+1
       pb$tick()
@@ -118,9 +135,16 @@ evaluation1 <- function(simulations){
     
     j = 1
     vars_select <- list()
-    methods <- list(boruta_vs, 
+    methods <- list(
+                    # vsurf_vsi, 
+                    # vsurf_vsp, 
+                    boruta_vs, 
                     janitza_vs1,
-                    janitza_vs2)
+                    janitza_vs2 
+                    # altmann_vs1, 
+                    # altmann_vs2
+                    )
+    
     for (method in methods){
       vars <- numeric(5000)
       for (vs in method) { vars[vs] <- vars[vs] + 1 }
@@ -128,9 +152,15 @@ evaluation1 <- function(simulations){
       j <- j+1
     }
     
-    resultats[[k]] <- list(boruta = vars_select[[1]], 
-                           janitza1 = vars_select[[2]],
-                           janitza2 = vars_select[[3]])
+    resultats[[k]] <- list(
+                           # vsurf_vsi = vars_select[[1]], 
+                           # vsurf_vsp = vars_select[[2]], 
+                           boruta_vs = vars_select[[1]], 
+                           janitza_vs1 = vars_select[[2]],
+                           janitza_vs2 = vars_select[[3]] 
+                           # altmann_vs1 = vars_select[[6]], 
+                           # altmann_vs2 = vars_select[[7]]
+                           )
     k <- k+1
     pb$tick()
   }
@@ -138,34 +168,124 @@ evaluation1 <- function(simulations){
   return(resultats)
 }
 
-simu <- simulation1(R=10)
-res <- evaluation1(simu)
-res[[4]]$boruta
-res[[4]]$janitza1
-res[[4]]$janitza2
+evaluation2 <- function(simulations){
+  
+  pb <- progress_bar$new(
+    format = "[:bar] :percent ETA: :eta",
+    total = length(simulations)*(length(simulations[[1]]))+1
+  )
+  
+  pb$tick()
+  k = 1
+  resultats <- list()
+  sensibilite_tot <- list()
+  fdr_tot <- list()
+  
+  for (simulation in simulations){
+    
+    # vsurf_vsi <- c()
+    # vsurf_vsp <- c()
+    boruta_vs <- c()
+    janitza_vs <- c()
+    # altmann_vs1 <- c()
+    # altmann_vs2 <- c()
+    
+    i = 1
+    sensibilite <- matrix(nrow = length(simulation), ncol = 2)
+    fdr <- matrix(nrow = length(simulation), ncol = 2)
+    
+    for (replica in simulation){
+      
+      # VSURF
+      # vsurf <- VSURF(replica$x, replica$y)
+      # vsurf_vsi <- c(vsurf_vsi, vsurf$varselect.interp)
+      # vsurf_vsp <- c(vsurf_vsp, vsurf$varselect.predict)
+      
+      # Boruta 
+      boruta <- Boruta(replica$x, replica$y)
+      boruta_vs <- c(boruta_vs, which(boruta$finalDecision=='Confirmed'))
+
+      # Janitza
+      PerVarImp1 <- CVPVI(replica$x, replica$y)
+      janitza <- NTA(PerVarImp1$cv_varim)
+      janitza_vs <- c(janitza_vs, which(janitza$pvalue==0))
+      # janitza_vs2 <- c(janitza_vs2, which(janitza$pvalue<median(janitza$pvalue)))
+
+      # Altmann
+      # RF <- randomForest(replica$x, replica$y, importance = T)
+      # PerVarImp2 <- PIMP(replica$x, replica$y, rForest = RF, S = 20)
+      # altmann <- PimpTest(PerVarImp2)
+      # altmann_vs1[[i]] <- which(altmann$pvalue<0.001)
+      # altmann_vs2[[i]] <- which(altmann$pvalue<floor(median(altmann$pvalue)*1000)*0.001)
+      
+      # CoV/VSURF
+      # covsurf <- covsurf(replica$x, replica$y)
+      # covsurf$vsurf_ptree$varselect.interp 
+      
+      methodes <- list(boruta_vs, janitza_vs)
+      j <- 1
+      for (m in methodes){
+        vp <- length(intersect(m, c(1,2,3)))
+        fn <- 3 - vp
+        fp <- length(setdiff(m, c(1,2,3)))
+        
+        sensibilite[i,j] <- vp/(vp+fn)
+        fdr[i,j] <- fp/(fp+vp)
+        
+        j <- j+1
+      }
+      
+      i <- i+1
+      pb$tick()
+    }
+    
+    sensibilite_tot[[k]] <- colMeans(sensibilite)
+    fdr_tot[[k]] <- colMeans(fdr)
+    k <- k+1
+  }
+  
+  resultats <- list(sensibilité = sensibilite_tot, fdr = fdr_tot)
+  return(resultats)
+}
 
 
-## Critère du coude pour le choix de 0.001 ? 
+simu <- simulation(R=50)
+res2 <- evaluation2(simu)
+res2
 
-# Janitza
-test1 <- CVPVI(simu[[2]][[3]]$x,simu[[2]][[3]]$y) 
+ 
+# Test des méthodes individuellement 
+
+## BORUTA ##
+test0 <- Boruta(simu[[2]][[2]]$x, simu[[2]][[2]]$y)
+which(test0$finalDecision=='Confirmed')
+
+## JANITZA ##
+test1 <- CVPVI(simu[[2]][[2]]$x, simu[[2]][[2]]$y) 
 test2 <- NTA(test1$cv_varim)
+# Visualisation
 mean(test2$pvalue)
 median(test2$pvalue)
-which(test2$pvalue<0.001)
-which(test2$pvalue<floor(median(test2$pvalue)*1000)*0.001)
-plot(sort(test2$pvalue)[1:400])
-abline(h=floor(median(test2$pvalue)*1000)*0.001, col = 'red')
+plot(sort(test2$pvalue)[1:5000])
+# Valeur seuil
+which(test2$pvalue==0)
+which(test2$pvalue<median(test2$pvalue))
 
-# Altmann
-RF <- randomForest(simu[[2]][[5]]$x, simu[[2]][[5]]$y, importance = TRUE)
-test3 <- PIMP(simu[[2]][[5]]$x, simu[[2]][[5]]$y, RF, S = 100)
+## ALTMANN ##
+RF <- randomForest(simu[[1]][[5]]$x, simu[[1]][[5]]$y, importance = TRUE)
+test3 <- PIMP(simu[[1]][[5]]$x, simu[[1]][[5]]$y, RF)
 test4 <- PimpTest(test3)
-test4$pvalue <- 1-test4$pvalue
 mean(test4$pvalue)
 median(test4$pvalue)
-plot(sort(test4$pvalue, decreasing = TRUE))
-which(test4$pvalue<0.5)
-which(test4$pvalue<floor(median(test4$pvalue)*1000)*0.001)
+plot(sort(test4$pvalue))
+which(test4$pvalue==0)
 
-## Tester pour 0.99 
+# VSURF 
+test5 <- VSURF(simu[[2]][[1]]$x, simu[[2]][[1]]$y)
+sort(test5$varselect.interp)
+test5$mean.perf
+
+# COVSURF
+test6 <- covsurf(simu[[1]][[5]]$x, simu[[1]][[5]]$y, kval = c(2:3))
+sort(test6$vsurf_ptree$varselect.interp)
+
