@@ -176,9 +176,10 @@ evaluation2 <- function(simulations){
   )
   
   # Critères d'évaluation
-  sensibilite_tot <- list()
-  fdr_tot <- list()
-  stabilite_tot <- list()
+  col_names <- c('Boruta', 'Janitza1', 'Janitza2')
+  sensibilite_tot <- matrix(NA, 2, 3, dimnames = list(c(1,2), col_names))
+  fdr_tot <- matrix(NA, 2, 3, dimnames = list(c(1,2), col_names))
+  stabilite_tot <- matrix(NA, 2, 3, dimnames = list(c(1,2), col_names))
   resultats <- list()
   
   k = 1
@@ -198,8 +199,9 @@ evaluation2 <- function(simulations){
     # Initialisation des critères d'évaluation
     sensibilite <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
     fdr <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
-    stabilite <- matrix(nrow = length(simulation)/2-1, ncol = length(methodes))
-    
+    stabilite <- matrix(nrow = ((length(simulation)/2)*(length(simulation)/2-1))/2, ncol = length(methodes))
+    vars_select <- list()
+
     i = 1
     
     # Pour chaque réplica...
@@ -248,22 +250,30 @@ evaluation2 <- function(simulations){
         j <- j+1
       }
       
-      # Stabilité
-      if (i!=1){
-        for (v in seq_along(methodes)){
-          stabilite[i-1,v] <- length(intersect(methodes[[v]], ancienne_methodes[[v]])) / length(union(methodes[[v]], ancienne_methodes[[v]]))
-        }
-      }
-      ancienne_methodes <- methodes
-      
+      vars_select[[i]] <- methodes
       i <- i+1
       pb$tick()
     }
-    
+
+    # Stabilité
+    pair_index <- 1
+    for (a in 1:(length(vars_select) - 1)) {
+      for (b in (a + 1):length(vars_select)) {
+        for (m in 1:length(methodes)) {
+          vars_a <- vars_select[[a]][[m]]
+          vars_b <- vars_select[[b]][[m]]
+          intersection_ab <- length(intersect(vars_a, vars_b))
+          union_ab <- length(union(vars_a, vars_b))
+          stabilite[pair_index, m] <- intersection_ab / union_ab
+        }
+        pair_index <- pair_index + 1
+      }
+    }
+    print(stabilite)
     # Moyenne des critères pour l'ensemble des réplicas d'un scénario
-    sensibilite_tot[[k]] <- colMeans(sensibilite)
-    fdr_tot[[k]] <- colMeans(fdr)
-    stabilite_tot[[k]] <- colMeans(stabilite)
+    sensibilite_tot[k,] <- colMeans(sensibilite)
+    fdr_tot[k,] <- colMeans(fdr)
+    stabilite_tot[k,] <- colMeans(stabilite)
     k <- k+1
     
     # for (replica in simulation[(length(simulation)/2+1):length(simulation)]){
@@ -276,12 +286,11 @@ evaluation2 <- function(simulations){
 }
 
 
-simu <- simulation(R=100)
+simu <- simulation(R=6)
 res2 <- evaluation2(simu)
 res2$sensibilité
 res2$fdr
 res2$stabilité
-
 
 
 
