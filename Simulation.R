@@ -175,56 +175,64 @@ evaluation2 <- function(simulations){
     total = length(simulations)*(length(simulations[[1]])/2)+1
   )
   
-  k = 1
-  resultats <- list()
+  # Critères d'évaluation
   sensibilite_tot <- list()
   fdr_tot <- list()
+  stabilite_tot <- list()
+  resultats <- list()
+  
+  k = 1
   pb$tick()
   
+  # Pour chaque scénario...
   for (simulation in simulations){
     
-    # vsurf_vsi <- c()
-    # vsurf_vsp <- c()
-    boruta_vs <- c()
-    janitza_vs <- c()
-    janitza_vs2 <- c()
-    # altmann_vs1 <- c()
-    # altmann_vs2 <- c()
+    methodes <- list(boruta_vs = c(),
+                     # vsurf_vsi = c(),
+                     # vsurf_vsp = c(),
+                     # altmann_vs1 = c(),
+                     # altmann_vs2 = c()),
+                     janitza_vs = c(),
+                     janitza_vs2 = c())
+                      
+    # Initialisation des critères d'évaluation
+    sensibilite <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
+    fdr <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
+    stabilite <- matrix(nrow = length(simulation)/2-1, ncol = length(methodes))
     
     i = 1
-    sensibilite <- matrix(nrow = length(simulation)/2, ncol = 3)
-    fdr <- matrix(nrow = length(simulation)/2, ncol = 3)
     
+    # Pour chaque réplica...
     for (replica in simulation[1:(length(simulation)/2)]){
 
       # VSURF
       # vsurf <- VSURF(replica$x, replica$y)
-      # vsurf_vsi <- c(vsurf_vsi, vsurf$varselect.interp)
-      # vsurf_vsp <- c(vsurf_vsp, vsurf$varselect.predict)
+      # methodes$vsurf_vsi <- c(vsurf_vsi, vsurf$varselect.interp)
+      # methodes$vsurf_vsp <- c(vsurf_vsp, vsurf$varselect.predict)
       
       # Boruta 
       boruta <- Boruta(replica$x, replica$y)
-      boruta_vs <- c(boruta_vs, which(boruta$finalDecision=='Confirmed'))
+      methodes$boruta_vs <- which(boruta$finalDecision=='Confirmed')
 
       # Janitza
       PerVarImp1 <- CVPVI(replica$x, replica$y)
       janitza <- NTA(PerVarImp1$cv_varim)
-      janitza_vs <- c(janitza_vs, which(janitza$pvalue==0))
-      janitza_vs2 <- c(janitza_vs2, which(janitza$pvalue<0.001))
+      methodes$janitza_vs <- which(janitza$pvalue==0)
+      methodes$janitza_vs2 <- which(janitza$pvalue<0.001)
 
       # Altmann
       # RF <- randomForest(replica$x, replica$y, importance = T)
       # PerVarImp2 <- PIMP(replica$x, replica$y, rForest = RF, S = 20)
       # altmann <- PimpTest(PerVarImp2)
-      # altmann_vs1[[i]] <- which(altmann$pvalue<0.001)
-      # altmann_vs2[[i]] <- which(altmann$pvalue<floor(median(altmann$pvalue)*1000)*0.001)
+      # methodes$altmann_vs1 <- which(methodes$altmann$pvalue<0.001)
+      # methodes$altmann_vs2 <- which(methodes$altmann$pvalue<floor(median(altmann$pvalue)*1000)*0.001)
       
       # CoV/VSURF
       # covsurf <- covsurf(replica$x, replica$y)
       # covsurf$vsurf_ptree$varselect.interp 
       
+      # Sensibilité & FDR
       j <- 1
-      methodes <- list(boruta_vs, janitza_vs, janitza_vs2)
       for (vars in methodes){
         if (k == 1){
           p <- c(c(1,2,3), seq(7,36,1))
@@ -240,12 +248,22 @@ evaluation2 <- function(simulations){
         j <- j+1
       }
       
+      # Stabilité
+      if (i!=1){
+        for (v in seq_along(methodes)){
+          stabilite[i-1,v] <- length(intersect(methodes[[v]], ancienne_methodes[[v]])) / length(union(methodes[[v]], ancienne_methodes[[v]]))
+        }
+      }
+      ancienne_methodes <- methodes
+      
       i <- i+1
       pb$tick()
     }
     
+    # Moyenne des critères pour l'ensemble des réplicas d'un scénario
     sensibilite_tot[[k]] <- colMeans(sensibilite)
     fdr_tot[[k]] <- colMeans(fdr)
+    stabilite_tot[[k]] <- colMeans(stabilite)
     k <- k+1
     
     # for (replica in simulation[(length(simulation)/2+1):length(simulation)]){
@@ -253,15 +271,16 @@ evaluation2 <- function(simulations){
     # }
   }
   
-  resultats <- list(sensibilité = sensibilite_tot, fdr = fdr_tot)
+  resultats <- list(sensibilité = sensibilite_tot, fdr = fdr_tot, stabilité = stabilite_tot)
   return(resultats)
 }
 
 
-simu <- simulation(R=20)
+simu <- simulation(R=100)
 res2 <- evaluation2(simu)
 res2$sensibilité
 res2$fdr
+res2$stabilité
 
 
 
