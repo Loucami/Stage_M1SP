@@ -5,7 +5,7 @@ library(vita)
 library(CoVVSURF)
 library(progress)
 library(randomForest)
-
+library(mlbench)
 
 simulation <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   
@@ -172,14 +172,14 @@ evaluation2 <- function(simulations){
   
   pb <- progress_bar$new(
     format = "[:bar] :percent ETA: :eta",
-    total = length(simulations)*(length(simulations[[1]]))+1
+    total = length(simulations)*(length(simulations[[1]])/2)+1
   )
   
-  pb$tick()
   k = 1
   resultats <- list()
   sensibilite_tot <- list()
   fdr_tot <- list()
+  pb$tick()
   
   for (simulation in simulations){
     
@@ -187,15 +187,16 @@ evaluation2 <- function(simulations){
     # vsurf_vsp <- c()
     boruta_vs <- c()
     janitza_vs <- c()
+    janitza_vs2 <- c()
     # altmann_vs1 <- c()
     # altmann_vs2 <- c()
     
     i = 1
-    sensibilite <- matrix(nrow = length(simulation), ncol = 2)
-    fdr <- matrix(nrow = length(simulation), ncol = 2)
+    sensibilite <- matrix(nrow = length(simulation)/2, ncol = 3)
+    fdr <- matrix(nrow = length(simulation)/2, ncol = 3)
     
-    for (replica in simulation){
-      
+    for (replica in simulation[1:(length(simulation)/2)]){
+
       # VSURF
       # vsurf <- VSURF(replica$x, replica$y)
       # vsurf_vsi <- c(vsurf_vsi, vsurf$varselect.interp)
@@ -209,7 +210,7 @@ evaluation2 <- function(simulations){
       PerVarImp1 <- CVPVI(replica$x, replica$y)
       janitza <- NTA(PerVarImp1$cv_varim)
       janitza_vs <- c(janitza_vs, which(janitza$pvalue==0))
-      # janitza_vs2 <- c(janitza_vs2, which(janitza$pvalue<median(janitza$pvalue)))
+      janitza_vs2 <- c(janitza_vs2, which(janitza$pvalue<0.001))
 
       # Altmann
       # RF <- randomForest(replica$x, replica$y, importance = T)
@@ -222,16 +223,20 @@ evaluation2 <- function(simulations){
       # covsurf <- covsurf(replica$x, replica$y)
       # covsurf$vsurf_ptree$varselect.interp 
       
-      methodes <- list(boruta_vs, janitza_vs)
       j <- 1
-      for (m in methodes){
-        vp <- length(intersect(m, c(1,2,3)))
-        fn <- 3 - vp
-        fp <- length(setdiff(m, c(1,2,3)))
+      methodes <- list(boruta_vs, janitza_vs, janitza_vs2)
+      for (vars in methodes){
+        if (k == 1){
+          p <- c(c(1,2,3), seq(7,36,1))
+        } else {
+          p <- c(c(1,2,3), seq(7,156,1))
+        }
+        vp <- length(intersect(vars, p))
+        fn <- length(p) - vp
+        fp <- length(setdiff(vars, p))
         
         sensibilite[i,j] <- vp/(vp+fn)
         fdr[i,j] <- fp/(fp+vp)
-        
         j <- j+1
       }
       
@@ -242,6 +247,10 @@ evaluation2 <- function(simulations){
     sensibilite_tot[[k]] <- colMeans(sensibilite)
     fdr_tot[[k]] <- colMeans(fdr)
     k <- k+1
+    
+    # for (replica in simulation[(length(simulation)/2+1):length(simulation)]){
+    #   
+    # }
   }
   
   resultats <- list(sensibilité = sensibilite_tot, fdr = fdr_tot)
@@ -249,11 +258,14 @@ evaluation2 <- function(simulations){
 }
 
 
-simu <- simulation(R=50)
+simu <- simulation(R=20)
 res2 <- evaluation2(simu)
-res2
+res2$sensibilité
+res2$fdr
 
- 
+
+
+
 # Test des méthodes individuellement 
 
 ## BORUTA ##
