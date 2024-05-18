@@ -183,6 +183,11 @@ evaluation2 <- function(simulations){
   rmse_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   empower_tot <- list()
   
+  valeurs <- list(sensibilite = list(), 
+                  fdr = list(),
+                  stabilite = list(),
+                  rmse = list())
+  
   resultats <- list()
   
   k = 1
@@ -303,6 +308,12 @@ evaluation2 <- function(simulations){
       i <- i+1
     }
     
+    # Enregistrement des valeurs pour les IC
+    valeurs$sensibilite[[k]] <- sensibilite
+    valeurs$fdr[[k]] <- fdr
+    valeurs$stabilite[[k]] <- stabilite
+    valeurs$rmse[[k]] <- rmse
+    
     # Moyenne des critères pour un scénario
     sensibilite_tot[k,] <- colMeans(sensibilite)
     fdr_tot[k,] <- colMeans(fdr)
@@ -314,17 +325,49 @@ evaluation2 <- function(simulations){
     k <- k+1
   }
   
-  resultats <- list(sensibilité = sensibilite_tot, 
-                    fdr = fdr_tot, 
-                    stabilité = stabilite_tot, 
-                    rmse = rmse_tot, 
+  # Calcul des intervalles de confiance
+  # 1 - Distribution Normale
+  c <- 1
+  criteres <- list(sensibilite_tot, 
+                   fdr_tot, 
+                   stabilite_tot, 
+                   rmse_tot)
+  ic <- list(ic_sensi = data.frame(), 
+             ic_fdr = data.frame(), 
+             ic_stabi = data.frame(), 
+             ic_rmse = data.frame())
+  for (critere in criteres){
+    for (i in 1:nrow(critere)){
+      for (j in 1:ncol(critere)){
+        z_score <- qnorm(0.975)
+        n <- length(simulations[[1]])/2
+        if (c<3){
+          inf <- round(critere[i,j] - z_score * sqrt(critere[i,j] * (1 - critere[i,j]) / n), 3)
+          inf <- ifelse(inf<0, 0, inf)
+          sup <- round(critere[i,j] + z_score * sqrt(critere[i,j] * (1 - critere[i,j]) / n), 3)
+          ic[[c]][i,j] <- paste(inf, sup, sep = ';')
+        } else {
+          inf <- round(critere[i,j] - z_score * (sd(valeurs[[c]][[i]][,j]) / sqrt(n)), 3)
+          sup <- round(critere[i,j] + z_score * (sd(valeurs[[c]][[i]][,j]) / sqrt(n)), 3)
+          ic[[c]][i,j] <- paste(inf, sup, sep = ';')
+        }
+        colnames(ic[[c]])[j] <- col_names[j]
+      }
+    }
+    c <- c+1
+  }
+  
+  resultats <- list(sensibilité = list(valeurs = sensibilite_tot, ic = ic$ic_sensi), 
+                    fdr = list(valeurs = fdr_tot, ic = ic$ic_fdr), 
+                    stabilité = list(valeurs = stabilite_tot, ic = ic$ic_stabi), 
+                    rmse = list(valeurs = rmse_tot, ic = ic$ic_rmse), 
                     empower = empower_tot)
   
   return(resultats)
 }
 
 
-simu <- simulation(R=20)
+simu <- simulation(R=100)
 res2 <- evaluation2(simu)
 
 res2$sensibilité
