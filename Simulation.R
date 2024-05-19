@@ -7,7 +7,7 @@ library(progress)
 library(randomForest)
 library(mlbench)
 
-simulation <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
+simulation_regression <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   
   simulations = list()
   k = 1
@@ -69,119 +69,24 @@ simulation <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   
   return(simulations)
 }
- 
-evaluation1 <- function(simulations){
+
+simulation_classification <- function(P = 5000, M = c(10,50), R = 100){}
+
+evaluation <- function(simulations){
   
   pb <- progress_bar$new(
     format = "[:bar] :percent ETA: :eta",
-    total = length(simulations)*(length(simulations[[1]])+1)+1
-  )
-  
-  pb$tick()
-  resultats <- list()
-  k = 1
-  
-  for (simulation in simulations){
-    
-    # vsurf_vsi <- list()
-    # vsurf_vsp <- list()
-    boruta_vs <- list()
-    janitza_vs1 <- list()
-    janitza_vs2 <- list()
-    # altmann_vs1 <- list()
-    # altmann_vs2 <- list()
-    
-    i = 1
-    
-    for (replica in simulation){
-      
-      # VSURF
-      # vsurf <- VSURF(replica$x, replica$y)
-      # vsurf_vsi[[i]] <- vsurf$varselect.interp
-      # vsurf_vsp[[i]] <- vsurf$varselect.predict
-      
-      # Boruta 
-      boruta <- Boruta(replica$x, replica$y)
-      boruta_vs[[i]] <- which(boruta$finalDecision=='Confirmed')
-
-      # Janitza
-      PerVarImp1 <- CVPVI(replica$x, replica$y)
-      janitza <- NTA(PerVarImp1$cv_varim)
-      janitza_vs1[[i]] <- which(janitza$pvalue==0)
-      janitza_vs2[[i]] <- which(janitza$pvalue<median(janitza$pvalue))
-      
-      # Altmann
-      # RF <- randomForest(replica$x, replica$y, importance = T)
-      # PerVarImp2 <- PIMP(replica$x, replica$y, rForest = RF, S = 20)
-      # altmann <- PimpTest(PerVarImp2)
-      # altmann_vs1[[i]] <- which(altmann$pvalue<0.001)
-      # altmann_vs2[[i]] <- which(altmann$pvalue<floor(median(altmann$pvalue)*1000)*0.001)
-      
-      # CoV/VSURF
-      # covsurf <- covsurf(replica$x, replica$y)
-      # covsurf$vsurf_ptree$varselect.interp 
-      
-      
-      # Calcul de performances 
-      # ICI
-      
-      i <- i+1
-      pb$tick()
-    }
-    
-    # for (replica in simulation[51:100]){
-    #   
-    # }
-    
-    j = 1
-    vars_select <- list()
-    methods <- list(
-                    # vsurf_vsi, 
-                    # vsurf_vsp, 
-                    boruta_vs, 
-                    janitza_vs1,
-                    janitza_vs2 
-                    # altmann_vs1, 
-                    # altmann_vs2
-                    )
-    
-    for (method in methods){
-      vars <- numeric(5000)
-      for (vs in method) { vars[vs] <- vars[vs] + 1 }
-      vars_select[[j]] <- which(vars/length(method) > 0.95) 
-      j <- j+1
-    }
-    
-    resultats[[k]] <- list(
-                           # vsurf_vsi = vars_select[[1]], 
-                           # vsurf_vsp = vars_select[[2]], 
-                           boruta_vs = vars_select[[1]], 
-                           janitza_vs1 = vars_select[[2]],
-                           janitza_vs2 = vars_select[[3]] 
-                           # altmann_vs1 = vars_select[[6]], 
-                           # altmann_vs2 = vars_select[[7]]
-                           )
-    k <- k+1
-    pb$tick()
-  }
-  
-  return(resultats)
-}
-
-evaluation2 <- function(simulations){
-  
-  pb <- progress_bar$new(
-    format = "[:bar] :percent ETA: :eta",
-    total = length(simulations)*(length(simulations[[1]])/2)+1
+    total = length(simulations)*(length(simulations[[1]])/2)+3
   )
   
   # Critères d'évaluation
-  col_names <- c('Boruta', 'Janitza')
+  col_names <- c('Boruta', 'Janitza', 'Altmann')
   sensibilite_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   fdr_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   stabilite_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   rmse_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   empower_tot <- list()
+  time_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   
   valeurs <- list(sensibilite = list(), 
                   fdr = list(),
@@ -199,14 +104,14 @@ evaluation2 <- function(simulations){
     methodes <- list(boruta_vs = c(),
                      # vsurf_vsi = c(),
                      # vsurf_vsp = c(),
-                     # altmann_vs = c(),
-                     janitza_vs = c())
+                     janitza_vs = c(),
+                     altmann_vs = c())
     
     modeles <- list(boruta_rf = c(),
                     # vsurf_rfi = c(),
                     # vsurf_rfp = c(),
-                    # altmann_rf = c(),
-                    janitza_rf = c())
+                    janitza_rf = c(),
+                    altmann_rf = c())
     
     # Initialisation du nombre de variables d'intérêts
     if (k==1) {p <- c(c(1,2,3), seq(7,36,1))} 
@@ -218,6 +123,7 @@ evaluation2 <- function(simulations){
     stabilite <- matrix(nrow = ((length(simulation)/2)*(length(simulation)/2-1))/2, ncol = length(methodes))
     rmse <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
     empower <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
+    time <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
       
     vars_select <- list()
     RF <- list()
@@ -233,21 +139,25 @@ evaluation2 <- function(simulations){
       # methodes$vsurf_vsp <- c(vsurf_vsp, vsurf$varselect.predict)
       
       # Boruta 
-      boruta <- Boruta(replica$x, replica$y)
-      methodes$boruta_vs <- which(boruta$finalDecision=='Confirmed')
-      modeles$boruta_rf <- randomForest(x = replica$x[,methodes$boruta_vs], y = replica$y)
+      time[i,1] <- system.time({
+        boruta <- Boruta(replica$x, replica$y)
+        methodes$boruta_vs <- which(boruta$finalDecision=='Confirmed')
+        modeles$boruta_rf <- randomForest(x = replica$x[,methodes$boruta_vs], y = replica$y)})[3]
 
       # Janitza
-      PerVarImp1 <- CVPVI(replica$x, replica$y)
-      janitza <- NTA(PerVarImp1$cv_varim)
-      methodes$janitza_vs <- which(janitza$pvalue==0)
-      modeles$janitza_rf <- randomForest(x = replica$x[,methodes$janitza_vs], y = replica$y)
+      time[i,2] <- system.time({
+        PerVarImp1 <- CVPVI(replica$x, replica$y)
+        janitza <- NTA(PerVarImp1$cv_varim)
+        methodes$janitza_vs <- which(janitza$pvalue==0)
+        modeles$janitza_rf <- randomForest(x = replica$x[,methodes$janitza_vs], y = replica$y)})[3]
 
       # Altmann
-      # RF <- randomForest(replica$x, replica$y, importance = T)
-      # PerVarImp2 <- PIMP(replica$x, replica$y, rForest = RF, S = 50)
-      # altmann <- PimpTest(PerVarImp2)
-      # methodes$altmann_vs1 <- which(methodes$altmann$pvalue==0)
+      time[i,3] <- system.time({
+        rf <- randomForest(replica$x, replica$y, importance = T)
+        PerVarImp2 <- PIMP(replica$x, replica$y, rForest = rf, S = 50)
+        altmann <- PimpTest(PerVarImp2)
+        methodes$altmann_vs <- which(altmann$pvalue==0)
+        modeles$altmann_rf <- randomForest(x = replica$x[,methodes$altmann_vs], y = replica$y)})[3]
       
       # CoV/VSURF
       # covsurf <- covsurf(replica$x, replica$y)
@@ -300,7 +210,8 @@ evaluation2 <- function(simulations){
     # Empirical Power
     i <- 1
     empower <- list(boruta_ep = matrix(0, length(simulation)/2, 5000), 
-                    janitza_ep = matrix(0,  length(simulation)/2, 5000))
+                    janitza_ep = matrix(0,  length(simulation)/2, 5000), 
+                    altmann_ep = matrix(0,  length(simulation)/2, 5000))
     for (v in 1:length(vars_select)){
       for (m in 1:length(methodes)){
         empower[[m]][i,vars_select[[i]][[m]]] <- empower[[m]][i,vars_select[[i]][[m]]] + 1
@@ -321,8 +232,10 @@ evaluation2 <- function(simulations){
     rmse_tot[k,] <- colMeans(rmse)
     for (e in 1:length(empower)){empower[[e]] <- colMeans(empower[[e]])}
     empower_tot[[k]] <- empower
+    time_tot[k,] <- colMeans(time)
     
     k <- k+1
+    pb$tick()
   }
   
   # Calcul des intervalles de confiance
@@ -341,10 +254,11 @@ evaluation2 <- function(simulations){
       for (j in 1:ncol(critere)){
         z_score <- qnorm(0.975)
         n <- length(simulations[[1]])/2
-        if (c<3){
+        if (c<4){
           inf <- round(critere[i,j] - z_score * sqrt(critere[i,j] * (1 - critere[i,j]) / n), 3)
           inf <- ifelse(inf<0, 0, inf)
           sup <- round(critere[i,j] + z_score * sqrt(critere[i,j] * (1 - critere[i,j]) / n), 3)
+          sup <- ifelse(sup>1,1,0)
           ic[[c]][i,j] <- paste(inf, sup, sep = ';')
         } else {
           inf <- round(critere[i,j] - z_score * (sd(valeurs[[c]][[i]][,j]) / sqrt(n)), 3)
@@ -357,30 +271,33 @@ evaluation2 <- function(simulations){
     c <- c+1
   }
   
+  
   resultats <- list(sensibilité = list(valeurs = sensibilite_tot, ic = ic$ic_sensi), 
                     fdr = list(valeurs = fdr_tot, ic = ic$ic_fdr), 
                     stabilité = list(valeurs = stabilite_tot, ic = ic$ic_stabi), 
                     rmse = list(valeurs = rmse_tot, ic = ic$ic_rmse), 
-                    empower = empower_tot)
+                    empower = empower_tot,
+                    time = time_tot)
   
   return(resultats)
 }
 
 
-simu <- simulation(R=100)
-res2 <- evaluation2(simu)
+simu <- simulation_regression(R=6)
+res <- evaluation(simu)
 
-res2$sensibilité
-res2$fdr
-res2$stabilité
-res2$rmse
+res$sensibilité
+res$fdr
+res$stabilité
+res$rmse
+res$time/60
 p1 <- c(c(1,2,3), seq(7,36,1))
 p2 <- c(c(1,2,3), seq(7,156,1))
-plot(p1, res2$empower[[1]]$boruta_ep[p1], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêts", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêts (n = 10)")
-lines(p1, res2$empower[[1]]$janitza_ep[p1], type = 'l', col = 'red')
+plot(p1, res$empower[[1]]$boruta_ep[p1], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêts", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêts (n = 10)")
+lines(p1, res$empower[[1]]$janitza_ep[p1], type = 'l', col = 'red')
 legend("topright", legend = c("Boruta", "Janitza"), col = c("darkgreen", "red"), lty = 1)
-plot(p2, res2$empower[[2]]$boruta_ep[p2], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêts", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêts (n = 50)")
-lines(p2, res2$empower[[2]]$janitza_ep[p2], type = 'l', col = 'red')
+plot(p2, res$empower[[2]]$boruta_ep[p2], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêts", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêts (n = 50)")
+lines(p2, res$empower[[2]]$janitza_ep[p2], type = 'l', col = 'red')
 legend("topright", legend = c("Boruta", "Janitza"), col = c("darkgreen", "red"), lty = 1)
 
 
