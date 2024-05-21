@@ -70,7 +70,9 @@ simulation_regression <- function(N = 100, P = 5000, p = 6, M = c(10,50), R = 10
   return(simulations)
 }
 
-simulation_classification <- function(P = 5000, M = c(10,50), R = 100){}
+simulation_classification <- function(P = 5000, M = c(10,50), R = 100){
+  
+}
 
 evaluation <- function(simulations){
   
@@ -80,7 +82,7 @@ evaluation <- function(simulations){
   )
   
   # Critères d'évaluation
-  col_names <- c('Boruta', 'Janitza', 'Altmann')
+  col_names <- c('Boruta', 'Janitza', 'Altmann', 'VSURFI', 'VSURFP')
   sensibilite_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   fdr_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
   stabilite_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
@@ -102,16 +104,16 @@ evaluation <- function(simulations){
   for (simulation in simulations){
     
     methodes <- list(boruta_vs = c(),
-                     # vsurf_vsi = c(),
-                     # vsurf_vsp = c(),
                      janitza_vs = c(),
-                     altmann_vs = c())
+                     altmann_vs = c(),
+                     vsurf_vsi = c(),
+                     vsurf_vsp = c())
     
     modeles <- list(boruta_rf = c(),
-                    # vsurf_rfi = c(),
-                    # vsurf_rfp = c(),
                     janitza_rf = c(),
-                    altmann_rf = c())
+                    altmann_rf = c(),
+                    vsurf_rfi = c(),
+                    vsurf_rfp = c())
     
     # Initialisation du nombre de variables d'intérêts
     if (k==1) {p <- c(c(1,2,3), seq(7,36,1))} 
@@ -132,11 +134,6 @@ evaluation <- function(simulations){
     
     # Application des méthodes sur la première moitié des réplicas
     for (replica in simulation[1:(length(simulation)/2)]){
-
-      # VSURF
-      # vsurf <- VSURF(replica$x, replica$y)
-      # methodes$vsurf_vsi <- c(vsurf_vsi, vsurf$varselect.interp)
-      # methodes$vsurf_vsp <- c(vsurf_vsp, vsurf$varselect.predict)
       
       # Boruta 
       time[i,1] <- system.time({
@@ -158,6 +155,14 @@ evaluation <- function(simulations){
         altmann <- PimpTest(PerVarImp2)
         methodes$altmann_vs <- which(altmann$pvalue==0)
         modeles$altmann_rf <- randomForest(x = replica$x[,methodes$altmann_vs], y = replica$y)})[3]
+      
+      # VSURF
+      time[i,4] <- system.time({
+        vsurf <- VSURF(replica$x, replica$y)
+        methodes$vsurf_vsi <- vsurf$varselect.interp
+        methodes$vsurf_vsp <- vsurf$varselect.pred
+        modeles$vsurf_rfi <- randomForest(x = replica$x[,methodes$vsurf_vsi], y = replica$y)
+        modeles$vsurf_rfp <- randomForest(x = replica$x[,methodes$vsurf_vsp], y = replica$y)})[3]
       
       # CoV/VSURF
       # covsurf <- covsurf(replica$x, replica$y)
@@ -211,7 +216,9 @@ evaluation <- function(simulations){
     i <- 1
     empower <- list(boruta_ep = matrix(0, length(simulation)/2, 5000), 
                     janitza_ep = matrix(0,  length(simulation)/2, 5000), 
-                    altmann_ep = matrix(0,  length(simulation)/2, 5000))
+                    altmann_ep = matrix(0,  length(simulation)/2, 5000),
+                    vsurf_epi = matrix(0,  length(simulation)/2, 5000),
+                    vsurf_epp = matrix(0,  length(simulation)/2, 5000))
     for (v in 1:length(vars_select)){
       for (m in 1:length(methodes)){
         empower[[m]][i,vars_select[[i]][[m]]] <- empower[[m]][i,vars_select[[i]][[m]]] + 1
@@ -258,7 +265,7 @@ evaluation <- function(simulations){
           inf <- round(critere[i,j] - z_score * sqrt(critere[i,j] * (1 - critere[i,j]) / n), 3)
           inf <- ifelse(inf<0, 0, inf)
           sup <- round(critere[i,j] + z_score * sqrt(critere[i,j] * (1 - critere[i,j]) / n), 3)
-          sup <- ifelse(sup>1,1,0)
+          sup <- ifelse(sup>1,1, sup)
           ic[[c]][i,j] <- paste(inf, sup, sep = ';')
         } else {
           inf <- round(critere[i,j] - z_score * (sd(valeurs[[c]][[i]][,j]) / sqrt(n)), 3)
@@ -290,24 +297,30 @@ res$sensibilité
 res$fdr
 res$stabilité
 res$rmse
+res$empower
 res$time/60
+
 p1 <- c(c(1,2,3), seq(7,36,1))
 p2 <- c(c(1,2,3), seq(7,156,1))
-plot(p1, res$empower[[1]]$boruta_ep[p1], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêts", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêts (n = 10)")
+plot(p1, res$empower[[1]]$boruta_ep[p1], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêt", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêt (n = 10)")
 lines(p1, res$empower[[1]]$janitza_ep[p1], type = 'l', col = 'red')
-legend("topright", legend = c("Boruta", "Janitza"), col = c("darkgreen", "red"), lty = 1)
-plot(p2, res$empower[[2]]$boruta_ep[p2], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêts", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêts (n = 50)")
-lines(p2, res$empower[[2]]$janitza_ep[p2], type = 'l', col = 'red')
-legend("topright", legend = c("Boruta", "Janitza"), col = c("darkgreen", "red"), lty = 1)
+lines(p1, res$empower[[1]]$altmann_ep[p1], type = 'l', col = 'darkblue')
+lines(p1, res$empower[[1]]$vsurf_epi[p1], type = 'l', col = 'yellow')
+legend("topright", legend = c("Boruta", "Janitza", "Altmann", "VSURF"), col = c("darkgreen", "red", "darkblue", "yellow"), lty = 1)
+# plot(p2, res$empower[[2]]$boruta_ep[p2], type = 'l', col = 'darkgreen', xlab = "Variables d'intérêt", ylab = 'Fréquence de sélection', main = "Fréquence de sélection des variables d'intérêt (n = 50)")
+# lines(p2, res$empower[[2]]$janitza_ep[p2], type = 'l', col = 'red')
+# legend("topright", legend = c("Boruta", "Janitza"), col = c("darkgreen", "red"), lty = 1)
 
 
 
 
 # # Test des méthodes individuellement 
-# 
+
 # ## BORUTA ##
-# test0 <- Boruta(simu[[2]][[2]]$x, simu[[2]][[2]]$y)
-# which(test0$finalDecision=='Confirmed')
+# test0 <- Boruta(simu[[2]][[3]]$x, simu[[2]][[3]]$y)
+# test1 <- which(test0$finalDecision=='Confirmed')
+# length(intersect(test1, p2))
+# setdiff(test1, p2)
 # 
 # ## JANITZA ##
 # test1 <- CVPVI(simu[[2]][[2]]$x, simu[[2]][[2]]$y) 
@@ -320,21 +333,19 @@ legend("topright", legend = c("Boruta", "Janitza"), col = c("darkgreen", "red"),
 # which(test2$pvalue==0)
 # which(test2$pvalue<median(test2$pvalue))
 # 
-# ## ALTMANN ##
+## ALTMANN ##
 # RF <- randomForest(simu[[1]][[5]]$x, simu[[1]][[5]]$y, importance = TRUE)
 # test3 <- PIMP(simu[[1]][[5]]$x, simu[[1]][[5]]$y, RF)
 # test4 <- PimpTest(test3)
-# mean(test4$pvalue)
-# median(test4$pvalue)
-# plot(sort(test4$pvalue))
 # which(test4$pvalue==0)
 # 
-# # VSURF 
+# # VSURF
 # test5 <- VSURF(simu[[2]][[1]]$x, simu[[2]][[1]]$y)
+# test5$varselect.thres
 # sort(test5$varselect.interp)
 # test5$mean.perf
 # 
-# # COVSURF
-# test6 <- covsurf(simu[[1]][[5]]$x, simu[[1]][[5]]$y, kval = c(2:3))
-# sort(test6$vsurf_ptree$varselect.interp)
+# COVSURF
+test6 <- covsurf(simu[[1]][[5]]$x, simu[[1]][[5]]$y, kval = c(2:10))
+sort(test6$vsurf_ptree$varselect.interp)
 
