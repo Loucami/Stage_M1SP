@@ -37,9 +37,10 @@ simulation <- function(type, N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
       
       # On crée p*m variables corrélées
       vars <- matrix(NA, N, p*m)
+      if (type == 'regression') {sd <- 0.3} else {sd <- sqrt(2)}
       for (i in 1:p) {
         for (j in 1:m){
-          delta <- rnorm(N, 0, 0.3)
+          delta <- rnorm(N, 0, sqrt(2)) 
           vars[,(i-1)*m+j] <- x[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))*delta
         } 
       }
@@ -56,36 +57,36 @@ simulation <- function(type, N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
   }
   
   # Scénarios indépendants (ou nuls)
-  # for (m in M){
-  #   data = list()
-  # 
-  #   for (r in 1:R){
-  #     if (type == 'regression'){
-  #       x_ind <- matrix(rnorm(3*N, 0, 0.2), ncol = 3)
-  #       epsilon <- rnorm(N, 0, 0.2)
-  #       Y <- 0.25*exp(4*x_ind[,1]) + 4/(1+exp(-20*(x_ind[,2]-0.5))) + 3*x_ind[,3] + epsilon
-  #     } else {
-  #       mlb.data <- mlbench.threenorm(N, d = 3)
-  #       Y <- mlb.data$classes
-  #     }
-  # 
-  #     x <- matrix(runif(p*N), ncol = p)
-  #     vars <- matrix(NA, N, p*m)
-  #     for (i in 1:p) {
-  #       for (j in 1:m){
-  #         delta <- rnorm(N, 0, 0.3)
-  #         vars[,(i-1)*m+j] <- x[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))*delta
-  #       }
-  #     }
-  # 
-  #     vars_sup <- matrix(runif(N*(P-p*m)), ncol = P-p*m)
-  #     X <- cbind(vars, vars_sup)
-  #     data[[r]] <- list(x = X, y = Y)
-  #   }
-  # 
-  #   simulations[[k]] <- data
-  #   k <- k+1
-  # }
+  for (m in M){
+    data = list()
+
+    for (r in 1:R){
+      if (type == 'regression'){
+        x_ind <- matrix(rnorm(3*N, 0, 0.2), ncol = 3)
+        epsilon <- rnorm(N, 0, 0.2)
+        Y <- 0.25*exp(4*x_ind[,1]) + 4/(1+exp(-20*(x_ind[,2]-0.5))) + 3*x_ind[,3] + epsilon
+      } else {
+        mlb.data <- mlbench.threenorm(N, d = 3)
+        Y <- mlb.data$classes
+      }
+
+      x <- matrix(runif(p*N), ncol = p)
+      vars <- matrix(NA, N, p*m)
+      for (i in 1:p) {
+        for (j in 1:m){
+          delta <- rnorm(N, 0, 0.3)
+          vars[,(i-1)*m+j] <- x[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))*delta
+        }
+      }
+
+      vars_sup <- matrix(runif(N*(P-p*m)), ncol = P-p*m)
+      X <- cbind(vars, vars_sup)
+      data[[r]] <- list(x = X, y = Y)
+    }
+
+    simulations[[k]] <- data
+    k <- k+1
+  }
   
   return(list(data = simulations, type = type))
 }
@@ -97,17 +98,19 @@ evaluation <- function(simulations){
   
   pb <- progress_bar$new(
     format = "[:bar] :percent ETA: :eta",
-    total = length(simulations)*(length(simulations[[1]])/2)+3
+    total = length(simulations)*(length(simulations[[1]])/2)+length(simulations)+1
   )
   
   # Critères d'évaluation
   col_names <- c('Boruta', 'Janitza')
+  if(length(simulations)==2){row_names <- c(1,2)} else {row_names <- c(1,2,3,4)}
   empower_tot <- list()
-  time_tot <- matrix(nrow = 2, ncol = length(col_names), dimnames = list(c(1,2), col_names))
+  time_tot <- matrix(nrow = length(simulations), ncol = length(col_names), dimnames = list(row_names, col_names))
   valeurs <- list(sensibilite = list(), 
                   fdr = list(),
                   stabilite = list(),
-                  erreur.pred = list())
+                  erreur.pred = list(),
+                  nb.fp = list())
   
   resultats <- list()
   
@@ -136,6 +139,7 @@ evaluation <- function(simulations){
                     janitza_ep = matrix(0,  length(simulation)/2, 5000))
     time <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
       
+    nb.fp <- matrix(nrow = length(simulation)/2, ncol = length(methodes)) 
     vars_select <- list()
     RF <- list()
     
@@ -155,7 +159,7 @@ evaluation <- function(simulations){
         PerVarImp1 <- CVPVI(replica$x, replica$y)
         janitza <- NTA(PerVarImp1$cv_varim)
         methodes$janitza_vs <- which(janitza$pvalue==0)
-        modeles$janitza_rf <- randomForest(x = replica$x[,methodes$janitza_vs], y = replica$y)})[3]
+        if (length(methodes$janitza_vs)!=0){modeles$janitza_rf <- randomForest(x = replica$x[, methodes$janitza_vs, drop=FALSE], y = replica$y)}})[3]
       
       # # Altmann
       # time[i,3] <- system.time({
@@ -182,6 +186,7 @@ evaluation <- function(simulations){
         fn <- length(p) - vp
         fp <- length(setdiff(vars, p))
         
+        nb.fp[i,j] <- fp
         sensibilite[i,j] <- vp/(vp+fn)
         fdr[i,j] <- fp/(fp+vp)
         j <- j+1
@@ -213,9 +218,11 @@ evaluation <- function(simulations){
     # Application des modèles séletcionnés sur l'autre moitié des réplicas
     for (replica in simulation[(length(simulation)/2+1):length(simulation)]){
       for (m in 1:length(methodes)){
-        prediction <- predict(RF[[i]][[m]], newdata = replica$x[,vars_select[[i]][[m]]])
-        if (type == 'regression'){erreur.pred[i,m] <- sqrt(mean((replica$y-prediction)^2))} # RMSE
-        else if (type == 'classification'){erreur.pred[i,m] <- sum(replica$y!=prediction)/length(prediction)} # Erreur de classification
+        if (length(vars_select[[i]][[m]])!=0){
+          prediction <- predict(RF[[i]][[m]], newdata = replica$x[, vars_select[[i]][[m]], drop=FALSE])
+          if (type == 'regression'){erreur.pred[i,m] <- sqrt(mean((replica$y-prediction)^2))} # RMSE
+          else if (type == 'classification'){erreur.pred[i,m] <- sum(replica$y!=prediction)/length(prediction)} # Erreur de classification
+        }
       }
       i <- i+1
     }
@@ -239,24 +246,27 @@ evaluation <- function(simulations){
     valeurs$fdr[[k]] <- fdr
     valeurs$stabilite[[k]] <- stabilite
     valeurs$erreur.pred[[k]] <- erreur.pred
+    valeurs$nb.fp[[k]] <- nb.fp
     
     k <- k+1
     pb$tick()
   }
-  
+
   # Calcul des médianes et intervalles interquartiles des critères restants
-  criteres <- list(sensibilite = matrix(nrow = 2, ncol = length(methodes), dimnames = list(c(1,2), col_names)),
-                   fdr = matrix(nrow = 2, ncol = length(methodes), dimnames = list(c(1,2), col_names)),
-                   stabilite = matrix(nrow = 2, ncol = length(methodes), dimnames = list(c(1,2), col_names)),
-                   erreur.pred = matrix(nrow = 2, ncol = length(methodes), dimnames = list(c(1,2), col_names)))
-  iq <- list(sensibilite = data.frame(), 
+  criteres <- list(sensibilite = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
+                   fdr = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
+                   stabilite = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
+                   erreur.pred = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
+                   nb.fp = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)))
+  iq <- list(sensibilite = data.frame(),
              fdr = data.frame(), 
              stabilite = data.frame(), 
-             erreur.pred = data.frame())
+             erreur.pred = data.frame(),
+             nb.fp = data.frame())
   for (c in 1:length(criteres)){
     for (i in 1:nrow(criteres[[c]])){
       for (j in 1:ncol(criteres[[c]])){
-        quartiles <- round(quantile(valeurs[[c]][[i]][,j], probs = c(0.25,0.5,0.75)), 4)
+        quartiles <- round(quantile(valeurs[[c]][[i]][,j], probs = c(0.25,0.5,0.75), na.rm = TRUE), 3)
         criteres[[c]][i,j] <- quartiles[2]
         iq[[c]][i,j] <- paste(quartiles[1], quartiles[3], sep = ';')
         colnames(iq[[c]])[j] <- col_names[j]
@@ -269,6 +279,7 @@ evaluation <- function(simulations){
                     fdr = list(valeurs = criteres[[2]], iq = iq$fdr), 
                     stabilité = list(valeurs = criteres[[3]], iq = iq$stabilite), 
                     erreur.pred = list(valeurs = criteres[[4]], iq = iq$erreur.pred), 
+                    nb.fp = list(valeurs = criteres[[5]], iq = iq$nb.fp),
                     empower = empower_tot,
                     time = time_tot,
                     type = type)
@@ -280,11 +291,15 @@ graphiques <- function(resultats){
   
   Méthodes <- c('Boruta','Janitza')
   
-  Q1 <- list(list(c(), c(), c(), c()),
-             list(c(), c(), c(), c()))
-  Q3 <- list(list(c(), c(), c(), c()),
-             list(c(), c(), c(), c()))
-  for (i in 1:length(resultats[1:4])){
+  Q1 <- list(list(c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c()))
+  Q3 <- list(list(c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c()))
+  for (i in 1:length(resultats[1:5])){
     for (j in 1:nrow(resultats[[i]]$iq)){
       for (col in resultats[[i]]$iq[j,]){
         Q1[[j]][[i]] <- c(Q1[[j]][[i]], as.numeric(strsplit(col,';')[[1]][1]))
@@ -370,6 +385,42 @@ graphiques <- function(resultats){
   
   grid.arrange(graph11, graph12, graph21, graph22, ncol = 2)
   
+  if (nrow(resultats$nb.fp$valeurs)>2){
+    data.null1 <- data.frame(x = resultats$erreur.pred$valeurs[3,],
+                              y = resultats$nb.fp$valeurs[3,],
+                              Q1_x = Q1[[3]][[4]],
+                              Q3_x = Q3[[3]][[4]],
+                              Q1_y = Q1[[3]][[5]],
+                              Q3_y = Q3[[3]][[5]])
+    graph.null1 <- ggplot(data.null1, aes(x = x, y = y, col = Méthodes)) + geom_point() +
+      geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen','red')) +
+      geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red')) +
+      labs(title = "n = 10",
+           x = "Erreur de prédiction",
+           y = "Nombre de faux positifs") +
+      coord_cartesian(xlim = c(0,2)) +
+      scale_color_manual(values = c("Boruta" = "darkgreen", "Janitza" = "red")) +
+      theme_minimal() 
+    
+    data.null2 <- data.frame(x = resultats$erreur.pred$valeurs[4,],
+                              y = resultats$nb.fp$valeurs[4,],
+                              Q1_x = Q1[[4]][[4]],
+                              Q3_x = Q3[[4]][[4]],
+                              Q1_y = Q1[[4]][[5]],
+                              Q3_y = Q3[[4]][[5]])
+    graph.null2 <- ggplot(data.null2, aes(x = x, y = y, col = Méthodes)) + geom_point() +
+      geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen','red')) +
+      geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red')) +
+      labs(title = "n = 50",
+           x = "Erreur de prédiction",
+           y = "Nombre de faux positifs") +
+      coord_cartesian(xlim = c(0,2)) +
+      scale_color_manual(values = c("Boruta" = "darkgreen", "Janitza" = "red")) +
+      theme_minimal() 
+    
+    grid.arrange(graph.null1, graph.null2, ncol = 2)
+  }
+  
   
   # Empirical Power
   data31 <- data.frame(x = seq(1,30),
@@ -407,7 +458,7 @@ graphiques <- function(resultats){
 
 
 # Test #
-simulations <- simulation('regression', R=100)
+simulations <- simulation('classification', R=10)
 resultats <- evaluation(simulations)
 graphiques(resultats)
 
@@ -416,13 +467,14 @@ resultats$sensibilité
 resultats$fdr
 resultats$stabilité
 resultats$erreur.pred
+resultats$nb.fp
 resultats$time/60
 
 
 
 # Détails variables corrélées
 
-simu <- simulation(type = 'regression', R = 10)
+simu <- simulation('classification', R=10)$data
 
 # Distribution des valeurs des variables corrélées
 par(mfrow = c(2,2))
@@ -436,15 +488,15 @@ for (i in 1:4){
   plot(cor(simu[[2]][[i]]$x[,2:50], simu[[2]][[i]]$x[,1]), xlab = 'Indices des variables', ylab = 'Corrélation avec X1', ylim = c(0.85,1))}
 
 # Corrélation entre X avec Y pour 10 et 50 variables corrélées
-plot(cor(simu[[1]][[1]]$x[,1:100], simu[[1]][[1]]$y), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
-plot(cor(simu[[2]][[2]]$x[,1:500], simu[[2]][[2]]$y), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
+plot(cor(simu[[1]][[1]]$x[,1:100], as.integer(simu[[1]][[1]]$y)), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
+plot(cor(simu[[2]][[1]]$x[,1:500], as.integer(simu[[2]][[2]]$y)), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
 
 
 ## BORUTA ##
-test0 <- Boruta(simu[[2]][[4]]$x, simu[[2]][[4]]$y)
-test1 <- which(test0$finalDecision!='Rejected')
-test1
-length(intersect(test1, seq(1,150)))/150
+# test0 <- Boruta(simu[[2]][[4]]$x, simu[[2]][[4]]$y)
+# test1 <- which(test0$finalDecision!='Rejected')
+# test1
+# length(intersect(test1, seq(1,150)))/150
 # 
 # ## JANITZA ##
 # test1 <- CVPVI(simu[[2]][[2]]$x, simu[[2]][[2]]$y) 
