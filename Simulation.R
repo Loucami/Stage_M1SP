@@ -40,7 +40,7 @@ simulation <- function(type, N = 100, P = 5000, p = 6, M = c(10,50), R = 100){
       if (type == 'regression') {sd <- 0.3} else {sd <- sqrt(2)}
       for (i in 1:p) {
         for (j in 1:m){
-          delta <- rnorm(N, 0, sqrt(2)) 
+          delta <- rnorm(N, 0, sd) 
           vars[,(i-1)*m+j] <- x[,i] + (0.01 + (0.5 * (j - 1)) / (m - 1))*delta
         } 
       }
@@ -515,8 +515,8 @@ plot(cor(simu[[2]][[1]]$x[,1:500], as.integer(simu[[2]][[2]]$y)), xlab = 'Indice
 # which(test4$pvalue==0)
 # 
 # VSURF
-# test5 <- VSURF(simu[[2]][[10]]$x, simu[[2]][[10]]$y)
-# sort(test5$varselect.interp)
+test5 <- VSURF(simu[[2]][[2]]$x, simu[[2]][[2]]$y)
+sort(test5$varselect.interp)
 # 
 # COVSURF
 # test6 <- covsurf(simu[[1]][[5]]$x, simu[[1]][[5]]$y, kval = c(2:10))
