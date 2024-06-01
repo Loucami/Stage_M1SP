@@ -110,7 +110,8 @@ evaluation <- function(simulations){
                   fdr = list(),
                   stabilite = list(),
                   erreur.pred = list(),
-                  nb.fp = list())
+                  nb.fp = list(),
+                  f1score = list())
   
   resultats <- list()
   
@@ -139,7 +140,9 @@ evaluation <- function(simulations){
                     janitza_ep = matrix(0,  length(simulation)/2, 5000))
     time <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
       
-    nb.fp <- matrix(nrow = length(simulation)/2, ncol = length(methodes)) 
+    nb.fp <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
+    f1score <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
+    
     vars_select <- list()
     RF <- list()
     
@@ -165,7 +168,7 @@ evaluation <- function(simulations){
       # time[i,3] <- system.time({
       #   rf <- randomForest(replica$x, replica$y, importance = T)
       #   PerVarImp2 <- PIMP(replica$x, replica$y, rForest = rf, S = 50)
-      #   altmann <- PimpTest(PerVarImp2)
+      #   altmann <- PimpTest(PerVarImp2, para = T)
       #   methodes$altmann_vs <- which(altmann$pvalue==0)
       #   modeles$altmann_rf <- randomForest(x = replica$x[,methodes$altmann_vs], y = replica$y)})[3]
       # 
@@ -187,6 +190,7 @@ evaluation <- function(simulations){
         fp <- length(setdiff(vars, p))
         
         nb.fp[i,j] <- fp
+        f1score[i,j] <- vp/(vp+(1/2)*(fn+fp))
         sensibilite[i,j] <- vp/(vp+fn)
         fdr[i,j] <- fp/(fp+vp)
         j <- j+1
@@ -247,6 +251,7 @@ evaluation <- function(simulations){
     valeurs$stabilite[[k]] <- stabilite
     valeurs$erreur.pred[[k]] <- erreur.pred
     valeurs$nb.fp[[k]] <- nb.fp
+    valeurs$f1score[[k]] <- f1score
     
     k <- k+1
     pb$tick()
@@ -257,12 +262,14 @@ evaluation <- function(simulations){
                    fdr = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
                    stabilite = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
                    erreur.pred = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
-                   nb.fp = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)))
+                   nb.fp = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)),
+                   f1score = matrix(nrow = length(simulations), ncol = length(methodes), dimnames = list(row_names, col_names)))
   iq <- list(sensibilite = data.frame(),
              fdr = data.frame(), 
              stabilite = data.frame(), 
              erreur.pred = data.frame(),
-             nb.fp = data.frame())
+             nb.fp = data.frame(),
+             f1score = data.frame)
   for (c in 1:length(criteres)){
     for (i in 1:nrow(criteres[[c]])){
       for (j in 1:ncol(criteres[[c]])){
@@ -280,6 +287,7 @@ evaluation <- function(simulations){
                     stabilité = list(valeurs = criteres[[3]], iq = iq$stabilite), 
                     erreur.pred = list(valeurs = criteres[[4]], iq = iq$erreur.pred), 
                     nb.fp = list(valeurs = criteres[[5]], iq = iq$nb.fp),
+                    f1score = list(valeurs = criteres[[6]], iq = iq$f1score),
                     empower = empower_tot,
                     time = time_tot,
                     type = type)
@@ -458,8 +466,8 @@ graphiques <- function(resultats){
 
 
 # Test #
-simulations <- simulation('classification', R=10)
-resultats <- evaluation(simulations)
+simulations <- simulation('regression', R=20)
+resultats <- evaluation(simulations[1:2])
 graphiques(resultats)
 
 # Détails des résultats #
@@ -468,6 +476,7 @@ resultats$fdr
 resultats$stabilité
 resultats$erreur.pred
 resultats$nb.fp
+resultats$
 resultats$time/60
 
 
@@ -509,14 +518,14 @@ plot(cor(simu[[2]][[1]]$x[,1:500], as.integer(simu[[2]][[2]]$y)), xlab = 'Indice
 # which(test2$pvalue==0)
 # 
 ## ALTMANN ##
-# RF <- randomForest(simu[[1]][[5]]$x, simu[[1]][[5]]$y, importance = TRUE)
-# test3 <- PIMP(simu[[1]][[5]]$x, simu[[1]][[5]]$y, RF)
-# test4 <- PimpTest(test3)
+# RF <- randomForest(simu[[1]][[1]]$x, simu[[1]][[1]]$y, importance = TRUE)
+# test3 <- PIMP(simu[[1]][[1]]$x, simu[[1]][[1]]$y, RF, S = 50)
+# test4 <- PimpTest(test3, para = TRUE)
 # which(test4$pvalue==0)
 # 
 # VSURF
-test5 <- VSURF(simu[[2]][[2]]$x, simu[[2]][[2]]$y)
-sort(test5$varselect.interp)
+# test5 <- VSURF(simu[[2]][[2]]$x, simu[[2]][[2]]$y)
+# sort(test5$varselect.interp)
 # 
 # COVSURF
 # test6 <- covsurf(simu[[1]][[5]]$x, simu[[1]][[5]]$y, kval = c(2:10))
