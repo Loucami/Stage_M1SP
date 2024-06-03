@@ -102,7 +102,7 @@ evaluation <- function(simulations){
   )
   
   # Critères d'évaluation
-  col_names <- c('Boruta', 'Janitza')
+  col_names <- c('Boruta', 'Janitza', 'Altmann')
   if(length(simulations)==2){row_names <- c(1,2)} else {row_names <- c(1,2,3,4)}
   empower_tot <- list()
   time_tot <- matrix(nrow = length(simulations), ncol = length(col_names), dimnames = list(row_names, col_names))
@@ -122,10 +122,12 @@ evaluation <- function(simulations){
   for (simulation in simulations){
     
     methodes <- list(boruta_vs = c(),
-                     janitza_vs = c())
+                     janitza_vs = c(),
+                     altmann_vs = c())
     
     modeles <- list(boruta_rf = c(),
-                    janitza_rf = c())
+                    janitza_rf = c(),
+                    altmann_rf = c())
     
     # Initialisation du nombre de variables d'intérêts
     if (k==1) {p <- seq(1,30)} 
@@ -137,7 +139,8 @@ evaluation <- function(simulations){
     stabilite <- matrix(nrow = ((length(simulation)/2)*(length(simulation)/2-1))/2, ncol = length(methodes))
     erreur.pred <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
     empower <- list(boruta_ep = matrix(0, length(simulation)/2, 5000), 
-                    janitza_ep = matrix(0,  length(simulation)/2, 5000))
+                    janitza_ep = matrix(0,  length(simulation)/2, 5000),
+                    altmann_ep = matrix(0,  length(simulation)/2, 5000))
     time <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
       
     nb.fp <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
@@ -154,7 +157,8 @@ evaluation <- function(simulations){
       # Boruta 
       time[i,1] <- system.time({
         boruta <- Boruta(replica$x, replica$y)
-        methodes$boruta_vs <- which(boruta$finalDecision!='Rejected')
+        boruta <- TentativeRoughFix(boruta)
+        methodes$boruta_vs <- which(boruta$finalDecision!='Confirmed')
         modeles$boruta_rf <- randomForest(x = replica$x[,methodes$boruta_vs], y = replica$y)})[3]
 
       # Janitza
@@ -164,14 +168,14 @@ evaluation <- function(simulations){
         methodes$janitza_vs <- which(janitza$pvalue==0)
         if (length(methodes$janitza_vs)!=0){modeles$janitza_rf <- randomForest(x = replica$x[, methodes$janitza_vs, drop=FALSE], y = replica$y)}})[3]
       
-      # # Altmann
-      # time[i,3] <- system.time({
-      #   rf <- randomForest(replica$x, replica$y, importance = T)
-      #   PerVarImp2 <- PIMP(replica$x, replica$y, rForest = rf, S = 50)
-      #   altmann <- PimpTest(PerVarImp2, para = T)
-      #   methodes$altmann_vs <- which(altmann$pvalue==0)
-      #   modeles$altmann_rf <- randomForest(x = replica$x[,methodes$altmann_vs], y = replica$y)})[3]
-      # 
+      # Altmann
+      time[i,3] <- system.time({
+        rf <- randomForest(replica$x, replica$y, importance = T)
+        PerVarImp2 <- PIMP(replica$x, replica$y, rForest = rf, S = 50)
+        altmann <- PimpTest(PerVarImp2, para = T)
+        methodes$altmann_vs <- which(altmann$pvalue==0)
+        if (length(methodes$altmann_vs)!=0){modeles$altmann_rf <- randomForest(x = replica$x[, methodes$altmann_vs, drop=FALSE], y = replica$y)}})[3]
+
       # # VSURF
       # time[i,4] <- system.time({
       #   vsurf <- VSURF(replica$x, replica$y)
@@ -466,7 +470,7 @@ graphiques <- function(resultats){
 
 
 # Test #
-simulations <- simulation('regression', R=20)
+simulations <- simulation('regression', R=10)
 resultats <- evaluation(simulations[1:2])
 graphiques(resultats)
 
@@ -487,7 +491,7 @@ simu <- simulation('classification', R=10)$data
 
 # Distribution des valeurs des variables corrélées
 par(mfrow = c(2,2))
-for (i in 1:4){hist(simu[[2]][[i]]$x[,1], xlab = 'Valeurs', main = '')}
+for (i in 1:4){hist(simu[[1]][[i]]$x[,1], xlab = 'Valeurs', main = '')}
 
 # Corrélation entre X1 et Xn pour 10 et 50 variables corrélées
 par(mfrow = c(2,2))
@@ -497,15 +501,15 @@ for (i in 1:4){
   plot(cor(simu[[2]][[i]]$x[,2:50], simu[[2]][[i]]$x[,1]), xlab = 'Indices des variables', ylab = 'Corrélation avec X1', ylim = c(0.85,1))}
 
 # Corrélation entre X avec Y pour 10 et 50 variables corrélées
-plot(cor(simu[[1]][[1]]$x[,1:100], as.integer(simu[[1]][[1]]$y)), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
-plot(cor(simu[[2]][[1]]$x[,1:500], as.integer(simu[[2]][[2]]$y)), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
+plot(cor(simu[[1]][[2]]$x[,1:100], as.integer(simu[[1]][[2]]$y)), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
+plot(cor(simu[[2]][[4]]$x[,1:500], as.integer(simu[[2]][[4]]$y)), xlab = 'Indices des Variables', ylab = 'Corrélation avec Y')
 
 
 ## BORUTA ##
-# test0 <- Boruta(simu[[2]][[4]]$x, simu[[2]][[4]]$y)
-# test1 <- which(test0$finalDecision!='Rejected')
-# test1
-# length(intersect(test1, seq(1,150)))/150
+test0 <- Boruta(simu[[1]][[1]]$x, simu[[1]][[1]]$y)
+test1 <- which(test0$finalDecision!='Rejected')
+test1
+length(intersect(test1, seq(1,150)))/150
 # 
 # ## JANITZA ##
 # test1 <- CVPVI(simu[[2]][[2]]$x, simu[[2]][[2]]$y) 
@@ -518,9 +522,9 @@ plot(cor(simu[[2]][[1]]$x[,1:500], as.integer(simu[[2]][[2]]$y)), xlab = 'Indice
 # which(test2$pvalue==0)
 # 
 ## ALTMANN ##
-# RF <- randomForest(simu[[1]][[1]]$x, simu[[1]][[1]]$y, importance = TRUE)
-# test3 <- PIMP(simu[[1]][[1]]$x, simu[[1]][[1]]$y, RF, S = 50)
-# test4 <- PimpTest(test3, para = TRUE)
+# RF <- randomForest(simu[[1]][[3]]$x, simu[[1]][[3]]$y, importance = TRUE)
+# test3 <- PIMP(simu[[1]][[3]]$x, simu[[1]][[3]]$y, RF, S = 500)
+# test4 <- PimpTest(test3, para = F)
 # which(test4$pvalue==0)
 # 
 # VSURF
