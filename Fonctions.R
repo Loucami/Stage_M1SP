@@ -179,7 +179,7 @@ evaluation <- function(simulations){
         time[i,3] <- system.time({
           rf <- randomForest(replica$x, replica$y, importance = T)
           PerVarImp2 <- PIMP(replica$x, replica$y, rForest = rf, S = 50, parallel = TRUE)
-          altmann <- PimpTest(PerVarImp2, para = T)
+          altmann <- PimpTest(PerVarImp2, para = F)
           methodes$altmann_vs <- which(altmann$pvalue==0)
           if (length(methodes$altmann_vs)!=0){modeles$altmann_rf <- randomForest(x = replica$x[, methodes$altmann_vs, drop=FALSE], y = replica$y)}})[3]
         
@@ -293,7 +293,7 @@ evaluation <- function(simulations){
   
   minutes <- floor(time.function/60)
   secondes <- round((time.function/60-minutes)*60)
-  time.function <- paste(minutes, "min", secondes, "s\n")
+  time.function <- paste(minutes, "min", secondes, "s")
   
   resultats <- list(sensibilité = list(valeurs = criteres[[1]], iq = iq$sensibilite), 
                     fdr = list(valeurs = criteres[[2]], iq = iq$fdr), 
