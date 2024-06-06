@@ -11,9 +11,9 @@ Fichier contenant les fonctions créés afin de réaliser la comparaison.
 
 #### Évaluation.R
 
-Fichier d'application des différentes méthodes. 
+Fichier d'application des méthodes de sélection. 
 
 
 #### Figures
 
-Dossier contenant les graphiques illustrant les résultats obtenues
+Dossier contenant les graphiques illustrant les résultats obtenues.
