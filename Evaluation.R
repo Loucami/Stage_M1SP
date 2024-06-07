@@ -1,6 +1,6 @@
 
 source('Fonctions.R')
-
+load(file = 'regression.RData')
 
 # 1 - Simulation
 simulations <- simulation('regression', R = 10)
