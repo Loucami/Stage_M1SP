@@ -107,7 +107,7 @@ evaluation <- function(simulations){
     )
     
     # Critères d'évaluation
-    col_names <- c('Boruta', 'Janitza', 'Altmann', 'VSURF')
+    col_names <- c('Boruta', 'Vita', 'Altmann', 'VSURF')
     if(length(simulations)==2){row_names <- c(1,2)} else {row_names <- c(1,2,3,4)}
     empower_tot <- list()
     time_tot <- matrix(nrow = length(simulations), ncol = length(col_names), dimnames = list(row_names, col_names))
@@ -127,12 +127,12 @@ evaluation <- function(simulations){
     for (simulation in simulations){
       
       methodes <- list(boruta_vs = c(),
-                       janitza_vs = c(),
+                       Vita_vs = c(),
                        altmann_vs = c(),
                        vsurf_vs = c())
       
       modeles <- list(boruta_rf = c(),
-                      janitza_rf = c(),
+                      Vita_rf = c(),
                       altmann_rf = c(),
                       vsurf_rf = c())
       
@@ -146,7 +146,7 @@ evaluation <- function(simulations){
       stabilite <- matrix(nrow = ((length(simulation)/2)*(length(simulation)/2-1))/2, ncol = length(methodes))
       erreur.pred <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
       empower <- list(boruta_ep = matrix(0, length(simulation)/2, 5000), 
-                      janitza_ep = matrix(0,  length(simulation)/2, 5000),
+                      Vita_ep = matrix(0,  length(simulation)/2, 5000),
                       altmann_ep = matrix(0,  length(simulation)/2, 5000),
                       vsurf_ep = matrix(0,  length(simulation)/2, 5000))
       time <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
@@ -169,12 +169,12 @@ evaluation <- function(simulations){
           methodes$boruta_vs <- which(boruta$finalDecision=='Confirmed')
           modeles$boruta_rf <- randomForest(x = replica$x[,methodes$boruta_vs], y = replica$y)})[3]
         
-        # Janitza
+        # Vita
         time[i,2] <- system.time({
           PerVarImp1 <- CVPVI(replica$x, replica$y, parallel = TRUE)
-          janitza <- NTA(PerVarImp1$cv_varim)
-          methodes$janitza_vs <- which(janitza$pvalue==0)
-          if (length(methodes$janitza_vs)!=0){modeles$janitza_rf <- randomForest(x = replica$x[, methodes$janitza_vs, drop=FALSE], y = replica$y)}})[3]
+          Vita <- NTA(PerVarImp1$cv_varim)
+          methodes$Vita_vs <- which(Vita$pvalue==0)
+          if (length(methodes$Vita_vs)!=0){modeles$Vita_rf <- randomForest(x = replica$x[, methodes$Vita_vs, drop=FALSE], y = replica$y)}})[3]
         
         # Altmann
         time[i,3] <- system.time({
@@ -334,7 +334,7 @@ evaluation_parallel <- function(simulations){
     )
     
     # Critères d'évaluation
-    col_names <- c('Boruta', 'Janitza', 'Altmann', 'VSURF')
+    col_names <- c('Boruta', 'Vita', 'Altmann', 'VSURF')
     if(length(simulations)==2){row_names <- c(1,2)} else {row_names <- c(1,2,3,4)}
     empower_tot <- list()
     time_tot <- matrix(nrow = length(simulations), ncol = length(col_names), dimnames = list(row_names, col_names))
@@ -354,12 +354,12 @@ evaluation_parallel <- function(simulations){
     for (simulation in simulations){
       
       methodes <- list(boruta_vs = c(),
-                       janitza_vs = c(),
+                       Vita_vs = c(),
                        altmann_vs = c(),
                        vsurf_vs = c())
       
       modeles <- list(boruta_rf = c(),
-                      janitza_rf = c(),
+                      Vita_rf = c(),
                       altmann_rf = c(),
                       vsurf_rf = c())
       
@@ -373,7 +373,7 @@ evaluation_parallel <- function(simulations){
       stabilite <- matrix(nrow = ((length(simulation)/2)*(length(simulation)/2-1))/2, ncol = length(methodes))
       erreur.pred <- matrix(nrow = length(simulation)/2, ncol = length(methodes))
       empower <- list(boruta_ep = matrix(0, length(simulation)/2, 5000), 
-                      janitza_ep = matrix(0,  length(simulation)/2, 5000),
+                      Vita_ep = matrix(0,  length(simulation)/2, 5000),
                       altmann_ep = matrix(0,  length(simulation)/2, 5000),
                       vsurf_ep = matrix(0,  length(simulation)/2, 5000))
       time <- matrix(0, nrow = length(simulation)/2, ncol = length(methodes))
@@ -420,12 +420,12 @@ evaluation_parallel <- function(simulations){
       # Application des autres méthodes sur la première moitié des réplicas
       for (replica in simulation[1:(length(simulation)/2)]){
         
-        # Janitza
+        # Vita
         time[i,2] <- system.time({
           PerVarImp1 <- CVPVI(replica$x, replica$y, parallel = TRUE)
-          janitza <- NTA(PerVarImp1$cv_varim)
-          methodes$janitza_vs <- which(janitza$pvalue==0)
-          if (length(methodes$janitza_vs)!=0){modeles$janitza_rf <- randomForest(x = replica$x[, methodes$janitza_vs, drop=FALSE], y = replica$y)}})[3]
+          Vita <- NTA(PerVarImp1$cv_varim)
+          methodes$Vita_vs <- which(Vita$pvalue==0)
+          if (length(methodes$Vita_vs)!=0){modeles$Vita_rf <- randomForest(x = replica$x[, methodes$Vita_vs, drop=FALSE], y = replica$y)}})[3]
         
         # Altmann
         time[i,3] <- system.time({
@@ -585,7 +585,7 @@ graphiques <- function(resultats){
     }
   }
   
-  Méthodes <- c('Boruta', 'Janitza', 'Altmann', 'VSURF')
+  Méthodes <- c('Boruta', 'Vita', 'Altmann', 'VSURF')
   
   Q1 <- list(list(c(), c(), c(), c(), c()),
              list(c(), c(), c(), c(), c()))
@@ -613,10 +613,10 @@ graphiques <- function(resultats){
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     labs(title = "Groupes n = 10",
-         x = "FDR",
+         x = "TFD",
          y = "Sensibilité") +
-    coord_cartesian(xlim = c(0, 0.5), ylim = c(0,1)) +
-    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange')) +
+    coord_cartesian(xlim = c(0, 1), ylim = c(0,1)) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
     scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
@@ -632,10 +632,10 @@ graphiques <- function(resultats){
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     labs(title = "Groupes n = 50",
-         x = "FDR",
+         x = "TFD",
          y = "Sensibilité") +
-    coord_cartesian(xlim = c(0, 0.5), ylim = c(0,1)) +
-    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange')) +
+    coord_cartesian(xlim = c(0, 1), ylim = c(0,1)) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
     scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
@@ -653,10 +653,10 @@ graphiques <- function(resultats){
   graph21 <- ggplot(data21, aes(x = x, y = y, col = Méthodes)) + geom_point() +
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-    labs(x = "Erreur de prédiction",
+    labs(x = "RMSE",
          y = "Stabilité") +
     coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
-    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange')) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
     scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
     theme_minimal() 
   
@@ -669,10 +669,10 @@ graphiques <- function(resultats){
   graph22 <- ggplot(data22, aes(x = x, y = y, col = Méthodes)) + geom_point() +
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-    labs(x = "Erreur de prédiction",
+    labs(x = "RMSE",
          y = "Stabilité") +
     coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
-    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange')) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
     scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
     theme_minimal()
   
@@ -692,7 +692,7 @@ graphiques <- function(resultats){
            x = "Erreur de prédiction",
            y = "Nombre de faux positifs") +
       coord_cartesian(xlim = c(0,2)) +
-      scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange')) +
+      scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
       theme_minimal() +
       theme(plot.title = element_text(hjust = 0.5))
     
@@ -709,7 +709,7 @@ graphiques <- function(resultats){
            x = "Erreur de prédiction",
            y = "Nombre de faux positifs") +
       coord_cartesian(xlim = c(0,2)) +
-      scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange')) +
+      scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
       theme_minimal() +
       theme(plot.title = element_text(hjust = 0.5))
     
@@ -721,19 +721,19 @@ graphiques <- function(resultats){
   data31 <- data.frame(x = seq(1,30),
                        Altmann = resultats$empower[[1]]$altmann_ep[seq(1,30)],
                        Boruta = resultats$empower[[1]]$boruta_ep[seq(1,30)],
-                       Janitza = resultats$empower[[1]]$janitza_ep[seq(1,30)],
+                       Vita = resultats$empower[[1]]$janitza_ep[seq(1,30)],
                        VSURF = resultats$empower[[1]]$vsurf_ep[seq(1,30)])
   graph31 <- ggplot(data31, aes(x = x)) + 
     geom_line(aes(y = Altmann, color = "Altmann")) +
     geom_line(aes(y = Boruta, color = "Boruta")) +
-    geom_line(aes(y = Janitza, color = "Janitza")) +
+    geom_line(aes(y = Vita, color = "Vita")) +
     geom_line(aes(y = VSURF, color = "VSURF")) +
     labs(title = 'Groupes n = 10', 
          x = "Variables d'intérêt",
          y = "Fréquence de sélection", 
          color = 'Méthodes') +
-    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange'),
-                       labels = c('Altmann', 'Boruta', "Janitza", 'VSURF')) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange'),
+                       labels = c('Altmann', 'Boruta', "Vita", 'VSURF')) +
     scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
@@ -741,19 +741,19 @@ graphiques <- function(resultats){
   data32 <- data.frame(x = seq(1,150),
                        Altmann = resultats$empower[[2]]$altmann_ep[seq(1,150)],
                        Boruta = resultats$empower[[2]]$boruta_ep[seq(1,150)],
-                       Janitza = resultats$empower[[2]]$janitza_ep[seq(1,150)],
+                       Vita = resultats$empower[[2]]$janitza_ep[seq(1,150)],
                        VSURF = resultats$empower[[2]]$vsurf_ep[seq(1,150)])
   graph32 <- ggplot(data32, aes(x = x)) + 
     geom_line(aes(y = Altmann, color = "Altmann")) +
     geom_line(aes(y = Boruta, color = "Boruta")) +
-    geom_line(aes(y = Janitza, color = "Janitza")) +
+    geom_line(aes(y = Vita, color = "Vita")) +
     geom_line(aes(y = VSURF, color = "VSURF")) +
     labs(title = 'Groupes n = 50',
          x = "Variables d'intérêt",
          y = "Fréquence de sélection", 
          color = 'Méthodes') +
-    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Janitza" = "red", 'VSURF' = 'orange'),
-                       labels = c('Altmann', 'Boruta', "Janitza", 'VSURF')) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange'),
+                       labels = c('Altmann', 'Boruta', "Vita", 'VSURF')) +
     scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
