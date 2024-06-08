@@ -14,6 +14,13 @@ Fichier contenant les fonctions créés afin de réaliser la comparaison.
 Fichier d'application des méthodes de sélection. 
 
 
-#### Figures
+### Résultats 
+
+Dossier contenant les résultats obtenues
+
+
+#### Graphiques
 
 Dossier contenant les graphiques illustrant les résultats obtenues.
+
+
