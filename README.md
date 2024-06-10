@@ -6,7 +6,7 @@ Ce dépôt Github renseigne les différents codes utilisés lors de mon stage de
 
 #### Fonctions.R
 
-Fichier contenant les fonctions créés afin de réaliser la comparaison. 
+Fichier contenant les fonctions créées afin de réaliser la comparaison. 
 
 
 #### Évaluation.R
