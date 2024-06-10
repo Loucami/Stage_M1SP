@@ -14,7 +14,7 @@ Fichier contenant les fonctions créés afin de réaliser la comparaison.
 Fichier d'application des méthodes de sélection. 
 
 
-### Résultats 
+#### Résultats 
 
 Dossier contenant les résultats obtenues
 
