@@ -653,7 +653,7 @@ graphiques <- function(resultats){
   graph21 <- ggplot(data21, aes(x = x, y = y, col = Méthodes)) + geom_point() +
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-    labs(x = "RMSE",
+    labs(x = "EC",
          y = "Stabilité") +
     coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
     scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
@@ -669,7 +669,7 @@ graphiques <- function(resultats){
   graph22 <- ggplot(data22, aes(x = x, y = y, col = Méthodes)) + geom_point() +
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-    labs(x = "RMSE",
+    labs(x = "EC",
          y = "Stabilité") +
     coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
     scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
