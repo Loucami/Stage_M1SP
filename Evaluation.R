@@ -1,7 +1,7 @@
 
 source('Fonctions.R')
-load(file = 'Résultats/regression.RData')
-load(file = 'Résultats/classification.RData')
+# load(file = 'Résultats/regression.RData')
+# load(file = 'Résultats/classification.RData')
 
 # 1 - Simulation
 simulations <- simulation('regression', R = 10)
