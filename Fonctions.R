@@ -173,8 +173,8 @@ evaluation <- function(simulations){
         time[i,2] <- system.time({
           PerVarImp1 <- CVPVI(replica$x, replica$y, parallel = TRUE)
           Vita <- NTA(PerVarImp1$cv_varim)
-          methodes$Vita_vs <- which(Vita$pvalue==0)
-          if (length(methodes$Vita_vs)!=0){modeles$Vita_rf <- randomForest(x = replica$x[, methodes$Vita_vs, drop=FALSE], y = replica$y)}})[3]
+          methodes$vita_vs <- which(vita$pvalue==0)
+          if (length(methodes$vita_vs)!=0){modeles$vita_rf <- randomForest(x = replica$x[, methodes$vita_vs, drop=FALSE], y = replica$y)}})[3]
         
         # Altmann
         time[i,3] <- system.time({
@@ -354,12 +354,12 @@ evaluation_parallel <- function(simulations){
     for (simulation in simulations){
       
       methodes <- list(boruta_vs = c(),
-                       Vita_vs = c(),
+                       vita_vs = c(),
                        altmann_vs = c(),
                        vsurf_vs = c())
       
       modeles <- list(boruta_rf = c(),
-                      Vita_rf = c(),
+                      vita_rf = c(),
                       altmann_rf = c(),
                       vsurf_rf = c())
       
@@ -587,12 +587,12 @@ graphiques <- function(resultats){
   
   Méthodes <- c('Boruta', 'Vita', 'Altmann', 'VSURF')
   
-  Q1 <- list(list(c(), c(), c(), c(), c()),
-             list(c(), c(), c(), c(), c()))
-  Q3 <- list(list(c(), c(), c(), c(), c()),
-             list(c(), c(), c(), c(), c()))
+  Q1 <- list(list(c(), c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c(), c()))
+  Q3 <- list(list(c(), c(), c(), c(), c(), c()),
+             list(c(), c(), c(), c(), c(), c()))
   
-  for (i in 1:length(resultats[1:5])){
+  for (i in 1:length(resultats[1:6])){
     for (j in 1:nrow(resultats[[i]]$iq)){
       for (col in resultats[[i]]$iq[j,]){
         Q1[[j]][[i]] <- c(Q1[[j]][[i]], as.numeric(strsplit(col,';')[[1]][1]))
@@ -640,6 +640,7 @@ graphiques <- function(resultats){
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
   
+  
   # Stabilité/Erreur de prédiction
   if (resultats$type == 'regression'){xbornes <- c(1,2)}
   else if (resultats$type == 'classification'){xbornes <- c(0,1)}
@@ -653,7 +654,7 @@ graphiques <- function(resultats){
   graph21 <- ggplot(data21, aes(x = x, y = y, col = Méthodes)) + geom_point() +
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-    labs(x = "EC",
+    labs(x = "Erreur Prédiction",
          y = "Stabilité") +
     coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
     scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
@@ -669,7 +670,7 @@ graphiques <- function(resultats){
   graph22 <- ggplot(data22, aes(x = x, y = y, col = Méthodes)) + geom_point() +
     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-    labs(x = "EC",
+    labs(x = "Erreur Prédiction",
          y = "Stabilité") +
     coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
     scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
@@ -678,52 +679,87 @@ graphiques <- function(resultats){
   
   grid.arrange(graph11, graph12, graph21, graph22, ncol = 2)
   
-  if (nrow(resultats$nb.fp$valeurs)>2){
-    data.null1 <- data.frame(x = resultats$erreur.pred$valeurs[3,],
-                             y = resultats$nb.fp$valeurs[3,],
-                             Q1_x = Q1[[3]][[4]],
-                             Q3_x = Q3[[3]][[4]],
-                             Q1_y = Q1[[3]][[5]],
-                             Q3_y = Q3[[3]][[5]])
-    graph.null1 <- ggplot(data.null1, aes(x = x, y = y, col = Méthodes)) + geom_point() +
-      geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-      geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-      labs(title = "n = 10",
-           x = "Erreur de prédiction",
-           y = "Nombre de faux positifs") +
-      coord_cartesian(xlim = c(0,2)) +
-      scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
-      theme_minimal() +
-      theme(plot.title = element_text(hjust = 0.5))
-    
-    data.null2 <- data.frame(x = resultats$erreur.pred$valeurs[4,],
-                             y = resultats$nb.fp$valeurs[4,],
-                             Q1_x = Q1[[4]][[4]],
-                             Q3_x = Q3[[4]][[4]],
-                             Q1_y = Q1[[4]][[5]],
-                             Q3_y = Q3[[4]][[5]])
-    graph.null2 <- ggplot(data.null2, aes(x = x, y = y, col = Méthodes)) + geom_point() +
-      geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-      geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
-      labs(title = "n = 50",
-           x = "Erreur de prédiction",
-           y = "Nombre de faux positifs") +
-      coord_cartesian(xlim = c(0,2)) +
-      scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
-      theme_minimal() +
-      theme(plot.title = element_text(hjust = 0.5))
-    
-    grid.arrange(graph.null1, graph.null2, ncol = 2)
-  }
+  # if (nrow(resultats$nb.fp$valeurs)>2){
+  #   data.null1 <- data.frame(x = resultats$erreur.pred$valeurs[3,],
+  #                            y = resultats$nb.fp$valeurs[3,],
+  #                            Q1_x = Q1[[3]][[4]],
+  #                            Q3_x = Q3[[3]][[4]],
+  #                            Q1_y = Q1[[3]][[5]],
+  #                            Q3_y = Q3[[3]][[5]])
+  #   graph.null1 <- ggplot(data.null1, aes(x = x, y = y, col = Méthodes)) + geom_point() +
+  #     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+  #     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+  #     labs(title = "n = 10",
+  #          x = "Erreur de prédiction",
+  #          y = "Nombre de faux positifs") +
+  #     coord_cartesian(xlim = c(0,2)) +
+  #     scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
+  #     theme_minimal() +
+  #     theme(plot.title = element_text(hjust = 0.5))
+  #   
+  #   data.null2 <- data.frame(x = resultats$erreur.pred$valeurs[4,],
+  #                            y = resultats$nb.fp$valeurs[4,],
+  #                            Q1_x = Q1[[4]][[4]],
+  #                            Q3_x = Q3[[4]][[4]],
+  #                            Q1_y = Q1[[4]][[5]],
+  #                            Q3_y = Q3[[4]][[5]])
+  #   graph.null2 <- ggplot(data.null2, aes(x = x, y = y, col = Méthodes)) + geom_point() +
+  #     geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+  #     geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+  #     labs(title = "n = 50",
+  #          x = "Erreur de prédiction",
+  #          y = "Nombre de faux positifs") +
+  #     coord_cartesian(xlim = c(0,2)) +
+  #     scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
+  #     theme_minimal() +
+  #     theme(plot.title = element_text(hjust = 0.5))
+  #   
+  #   grid.arrange(graph.null1, graph.null2, ncol = 2)
+  # }
   
+  
+  # F1Score/Erreur de prédiction
+  data31 <- data.frame(x = resultats$erreur.pred$valeurs[1,],
+                       y = resultats$f1score$valeurs[1,],
+                       Q1_x = Q1[[1]][[4]],
+                       Q3_x = Q3[[1]][[4]],
+                       Q1_y = Q1[[1]][[6]],
+                       Q3_y = Q3[[1]][[6]])
+  graph31 <- ggplot(data31, aes(x = x, y = y, col = Méthodes)) + geom_point() +
+    geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+    geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+    labs(x = "Erreur Prédiction",
+         y = "F1score") +
+    coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
+    scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+    theme_minimal() 
+  
+  data32 <- data.frame(x = resultats$erreur.pred$valeurs[2,],
+                       y = resultats$f1score$valeurs[2,],
+                       Q1_x = Q1[[2]][[4]],
+                       Q3_x = Q3[[2]][[4]],
+                       Q1_y = Q1[[2]][[6]],
+                       Q3_y = Q3[[2]][[6]])
+  graph32 <- ggplot(data32, aes(x = x, y = y, col = Méthodes)) + geom_point() +
+    geom_errorbar(aes(xmin = Q1_x, xmax = Q3_x), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+    geom_errorbar(aes(ymin = Q1_y, ymax = Q3_y), width = 0.05, color = c('darkgreen', 'red', 'darkblue', 'orange')) +
+    labs(x = "Erreur Prédiction",
+         y = "F1score") +
+    coord_cartesian(xlim = xbornes, ylim = c(0,1)) +
+    scale_color_manual(values = c('Altmann' = 'darkblue', "Boruta" = "darkgreen", "Vita" = "red", 'VSURF' = 'orange')) +
+    scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+    theme_minimal() 
+  
+  grid.arrange(graph31, graph32, ncol = 2)
   
   # Empirical Power
-  data31 <- data.frame(x = seq(1,30),
-                       Altmann = resultats$empower[[1]]$altmann_ep[seq(1,30)],
-                       Boruta = resultats$empower[[1]]$boruta_ep[seq(1,30)],
-                       Vita = resultats$empower[[1]]$janitza_ep[seq(1,30)],
-                       VSURF = resultats$empower[[1]]$vsurf_ep[seq(1,30)])
-  graph31 <- ggplot(data31, aes(x = x)) + 
+  data41 <- data.frame(x = seq(1,30),
+                       Altmann = resultats$empower[[1]]$altmann_ep[1:30],
+                       Boruta = resultats$empower[[1]]$boruta_ep[1:30],
+                       Vita = resultats$empower[[1]]$janitza_ep[1:30],
+                       VSURF = resultats$empower[[1]]$vsurf_ep[1:30])
+  graph41 <- ggplot(data41, aes(x = x)) + 
     geom_line(aes(y = Altmann, color = "Altmann")) +
     geom_line(aes(y = Boruta, color = "Boruta")) +
     geom_line(aes(y = Vita, color = "Vita")) +
@@ -738,12 +774,12 @@ graphiques <- function(resultats){
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
   
-  data32 <- data.frame(x = seq(1,150),
+  data42 <- data.frame(x = seq(1,150),
                        Altmann = resultats$empower[[2]]$altmann_ep[seq(1,150)],
                        Boruta = resultats$empower[[2]]$boruta_ep[seq(1,150)],
                        Vita = resultats$empower[[2]]$janitza_ep[seq(1,150)],
                        VSURF = resultats$empower[[2]]$vsurf_ep[seq(1,150)])
-  graph32 <- ggplot(data32, aes(x = x)) + 
+  graph42 <- ggplot(data42, aes(x = x)) + 
     geom_line(aes(y = Altmann, color = "Altmann")) +
     geom_line(aes(y = Boruta, color = "Boruta")) +
     geom_line(aes(y = Vita, color = "Vita")) +
@@ -758,6 +794,6 @@ graphiques <- function(resultats){
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5))
   
-  grid.arrange(graph31, graph32, ncol = 2)
+  grid.arrange(graph41, graph42, ncol = 2)
 }
 

@@ -4,7 +4,5 @@
 .Ruserdata
 .DS_Store
 Brouillon.R
-ClassificationTrees.R
-ClassificationMtry150.R
-ClassificationMtry500.R
 Figures/
+Comparaison.R
